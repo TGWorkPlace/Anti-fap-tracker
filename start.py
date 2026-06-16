@@ -1,19 +1,17 @@
-"""
-Health-check web server for Koyeb (port 8080).
-Runs alongside the Pyrogram bot using asyncio.
-"""
 import asyncio
 import logging
 from aiohttp import web
-from main import app, setup_scheduler
-import pytz
+from main import app, scheduler, setup_scheduler
+from database import get_ist_now
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+)
 logger = logging.getLogger(__name__)
-IST = pytz.timezone("Asia/Kolkata")
 
 
 async def health_check(request):
-    from database import get_ist_now
     now = get_ist_now().strftime("%d %b %Y %I:%M %p IST")
     return web.json_response({
         "status": "ok",
@@ -30,18 +28,24 @@ async def start_web_server():
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", 8080)
     await site.start()
-    logger.info("Health-check server running on port 8080")
+    logger.info("Health-check server live on port 8080")
 
 
 async def main():
-    setup_scheduler()
+    # 1. Start health-check web server
     await start_web_server()
+
+    # 2. Start the Pyrogram bot (registers all handlers from main.py)
     await app.start()
     me = await app.get_me()
     logger.info(f"NoFap Bot live: @{me.username}")
+
+    # 3. Start the APScheduler (5 AM IST broadcast)
+    setup_scheduler()
+
+    # 4. Keep the process alive
     await asyncio.Event().wait()
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     asyncio.run(main())
