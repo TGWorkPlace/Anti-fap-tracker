@@ -19,4 +19,4 @@ COPY . .
 EXPOSE 8080
 
 # Run the bot via start.py (includes web server)
-CMD ["python", "start.py"]
+CMD ["python", "main.py"]
