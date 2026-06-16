@@ -4,7 +4,7 @@ import threading
 from datetime import datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-from pyrogram import Client, filters
+from pyrogram import Client, filters, idle
 from pyrogram.types import (
     Message, CallbackQuery,
     InlineKeyboardMarkup, InlineKeyboardButton
@@ -48,7 +48,8 @@ class HealthHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"OK")
 
     def log_message(self, format, *args):
-        pass  # Suppress access logs
+        pass
+
 
 def run_health_server():
     server = HTTPServer(("0.0.0.0", PORT), HealthHandler)
@@ -181,7 +182,10 @@ async def streak_response_callback(client: Client, callback: CallbackQuery):
 async def stats_handler(client: Client, message: Message):
     user = message.from_user
     if not is_user_joined(user.id):
-        await message.reply_text("❌ You haven't joined yet!\nSend /start to begin.", parse_mode="markdown")
+        await message.reply_text(
+            "❌ You haven't joined yet!\nSend /start to begin.",
+            parse_mode="markdown"
+        )
         return
     stats = get_user_stats(user.id)
     joined_str = stats["joined_at"].strftime("%d %B %Y") if stats.get("joined_at") else "Unknown"
@@ -239,9 +243,20 @@ async def send_morning_broadcast():
     logger.info(f"Broadcast sent to {len(sent_ids)} users for {date_label}")
 
 
-# ── Scheduler setup (called after event loop is running) ──────────────────────
+# ── Main entry ─────────────────────────────────────────────────────────────────
 
-def setup_scheduler():
+async def main():
+    # 1. Health server in daemon thread
+    thread = threading.Thread(target=run_health_server, daemon=True)
+    thread.start()
+    logger.info(f"Health-check server running on port {PORT}")
+
+    # 2. Start Pyrogram
+    await app.start()
+    me = await app.get_me()
+    logger.info(f"NoFap Bot live: @{me.username}")
+
+    # 3. Start scheduler AFTER app.start() so it uses the same running event loop
     scheduler.add_job(
         send_morning_broadcast,
         CronTrigger(hour=5, minute=0, timezone=IST),
@@ -251,20 +266,14 @@ def setup_scheduler():
     scheduler.start()
     logger.info("Scheduler started — 5:00 AM IST daily broadcast armed.")
 
+    # 4. idle() is Pyrogram's own keep-alive — replaces asyncio.Event().wait()
+    #    and correctly keeps the dispatcher running
+    await idle()
 
-# ── Main entry ─────────────────────────────────────────────────────────────────
+    # 5. Graceful shutdown
+    scheduler.shutdown()
+    await app.stop()
+
 
 if __name__ == "__main__":
-    # 1. Start health-check server in a daemon thread (same pattern as working bot)
-    thread = threading.Thread(target=run_health_server, daemon=True)
-    thread.start()
-    logger.info(f"Health-check server running on port {PORT}")
-
-    # 2. Start scheduler before app.run() — APScheduler will attach to the
-    #    event loop that Pyrogram creates internally via app.run()
-    setup_scheduler()
-
-    # 3. app.run() blocks, starts the dispatcher, and handles everything —
-    #    this is exactly what the working bot uses
-    logger.info("Bot starting...")
-    app.run()
+    asyncio.run(main())
