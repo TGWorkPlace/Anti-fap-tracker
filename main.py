@@ -308,17 +308,3 @@ def setup_scheduler():
     logger.info("Scheduler started — morning broadcast at 5:00 AM IST daily.")
 
 
-# ─────────────────────────────────────────────
-# BOT STARTUP / SHUTDOWN
-# ─────────────────────────────────────────────
-
-async def main():
-    setup_scheduler()
-    await app.start()
-    me = await app.get_me()
-    logger.info(f"Bot started: @{me.username}")
-    await asyncio.Event().wait()  # Keep running
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
