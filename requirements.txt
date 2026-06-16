@@ -1,4 +1,4 @@
-pyrotgfork
+pyrogram
 TgCrypto
 pymongo==4.6.1
 pytz==2024.1
