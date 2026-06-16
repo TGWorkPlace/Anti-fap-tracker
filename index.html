@@ -10,15 +10,147 @@
     background: #000;
     font-family: 'Arial Black', Arial, sans-serif;
     width: 100%;
+    height: 100%;
     overflow-x: hidden;
   }
-  body {
+
+  /* ===================== WELCOME SCREEN ===================== */
+  #welcome-screen {
+    position: fixed;
+    inset: 0;
+    background: #000;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 18px;
-    padding: 16px 10px 40px;
+    justify-content: center;
+    z-index: 100;
+    gap: 0;
   }
+  #welcome-screen canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .welcome-content {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 200px;
+  }
+  .welcome-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 2px solid #333;
+    object-fit: cover;
+    margin-bottom: 4px;
+  }
+  .welcome-title {
+    color: #fff;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: center;
+    text-shadow: 0 0 20px rgba(255,120,0,0.6);
+  }
+  .welcome-sub {
+    color: #888;
+    font-size: 9px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .welcome-msg {
+    color: #ccc;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+    text-align: center;
+    line-height: 1.6;
+    max-width: 260px;
+    margin-bottom: 8px;
+  }
+  .welcome-msg span {
+    color: #fff;
+    font-weight: 900;
+  }
+
+  .btn-group {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 0 40px;
+  }
+  .nav-btn {
+    width: 100%;
+    max-width: 300px;
+    padding: 14px 0;
+    background: #fff;
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 0 20px rgba(255,255,255,0.1);
+  }
+  .nav-btn:active {
+    transform: scale(0.97);
+    background: #e0e0e0;
+  }
+
+  /* ===================== TRACKER SCREENS ===================== */
+  #weekly-screen, #monthly-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 16px 10px 40px;
+    min-height: 100vh;
+  }
+
+  .back-btn {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    z-index: 200;
+    background: #fff;
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 7px 13px;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(255,255,255,0.15);
+    transition: all 0.2s;
+  }
+  .back-btn:active {
+    transform: scale(0.96);
+    background: #ddd;
+  }
+
+  /* ===================== CARD ===================== */
   .card {
     position: relative;
     width: 100%;
@@ -28,9 +160,10 @@
     border-radius: 16px;
     overflow: hidden;
     box-shadow: 0 0 30px rgba(0,0,0,0.8);
+    margin-top: 54px;
   }
 
-  /* ===================== HEADER (shared) ===================== */
+  /* ===================== HEADER ===================== */
   .header {
     position: relative;
     display: flex;
@@ -46,61 +179,14 @@
     border: 2px solid #2a2a2a;
     flex-shrink: 0;
   }
-  .user-info {
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-  }
-  .user-name {
-    color: #fff;
-    font-size: 13px;
-    font-weight: 900;
-    letter-spacing: 0.5px;
-  }
-  .user-tag {
-    color: #888;
-    font-size: 7px;
-    letter-spacing: 0.3px;
-    margin-top: 2px;
-    font-weight: 400;
-    line-height: 1.3;
-  }
-  .title-wrap {
-    flex: 1;
-    text-align: center;
-    min-width: 0;
-  }
-  .title-weekly {
-    color: #fff;
-    font-size: 22px;
-    font-weight: 900;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-  .title-monthly {
-    color: #fff;
-    font-size: 17px;
-    font-weight: 900;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-  .subtitle {
-    color: #777;
-    font-size: 7px;
-    letter-spacing: 1.5px;
-    font-weight: 400;
-    margin-top: 3px;
-  }
-  .bg-flame {
-    position: absolute;
-    top: 6px;
-    right: 10px;
-    width: 42px;
-    height: 42px;
-    opacity: 0.35;
-  }
+  .user-info { display: flex; flex-direction: column; flex-shrink: 0; }
+  .user-name { color: #fff; font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }
+  .user-tag { color: #888; font-size: 7px; letter-spacing: 0.3px; margin-top: 2px; font-weight: 400; line-height: 1.3; }
+  .title-wrap { flex: 1; text-align: center; min-width: 0; }
+  .title-weekly { color: #fff; font-size: 22px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+  .title-monthly { color: #fff; font-size: 17px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; }
+  .subtitle { color: #777; font-size: 7px; letter-spacing: 1.5px; font-weight: 400; margin-top: 3px; }
+  .bg-flame { position: absolute; top: 6px; right: 10px; width: 42px; height: 42px; opacity: 0.35; }
 
   /* ===================== WEEKLY GRID ===================== */
   .week-grid {
@@ -109,123 +195,32 @@
     border-top: 1px solid #1f1f1f;
     border-bottom: 1px solid #1f1f1f;
   }
-  .day-col {
-    text-align: center;
-    padding: 10px 2px 12px;
-    border-right: 1px solid #1f1f1f;
-  }
+  .day-col { text-align: center; padding: 10px 2px 12px; border-right: 1px solid #1f1f1f; }
   .day-col:last-child { border-right: none; }
-  .day-letter {
-    color: #fff;
-    font-size: 16px;
-    font-weight: 900;
-  }
-  .day-num {
-    color: #777;
-    font-size: 8px;
-    margin-top: 2px;
-    margin-bottom: 8px;
-    font-weight: 400;
-  }
-  .day-col .icon-wrap img {
-    width: 36px;
-    height: 36px;
-    object-fit: contain;
-  }
+  .day-letter { color: #fff; font-size: 16px; font-weight: 900; }
+  .day-num { color: #777; font-size: 8px; margin-top: 2px; margin-bottom: 8px; font-weight: 400; }
+  .day-col .icon-wrap img { width: 36px; height: 36px; object-fit: contain; }
 
   /* ===================== MONTHLY GRID ===================== */
-  .weekday-row {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    border-top: 1px solid #1f1f1f;
-    padding: 6px 0;
-  }
-  .weekday-row div {
-    text-align: center;
-    color: #fff;
-    font-size: 11px;
-    font-weight: 900;
-  }
-  .month-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    border-top: 1px solid #1f1f1f;
-    border-bottom: 1px solid #1f1f1f;
-  }
-  .day-cell {
-    position: relative;
-    height: 46px;
-    border-right: 1px solid #1a1a1a;
-    border-bottom: 1px solid #1a1a1a;
-    padding: 4px 5px;
-  }
+  .weekday-row { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid #1f1f1f; padding: 6px 0; }
+  .weekday-row div { text-align: center; color: #fff; font-size: 11px; font-weight: 900; }
+  .month-grid { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid #1f1f1f; border-bottom: 1px solid #1f1f1f; }
+  .day-cell { position: relative; height: 46px; border-right: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a; padding: 4px 5px; }
   .day-cell:nth-child(7n) { border-right: none; }
-  .day-cell .day-num {
-    color: #888;
-    font-size: 8px;
-    font-weight: 400;
-    margin: 0;
-  }
-  .day-cell .icon-wrap {
-    position: absolute;
-    bottom: 3px;
-    right: 4px;
-  }
-  .day-cell .icon-wrap img {
-    width: 22px;
-    height: 22px;
-    object-fit: contain;
-  }
-  .empty-cell {
-    border-right: 1px solid #1a1a1a;
-    border-bottom: 1px solid #1a1a1a;
-    height: 46px;
-  }
+  .day-cell .day-num { color: #888; font-size: 8px; font-weight: 400; margin: 0; }
+  .day-cell .icon-wrap { position: absolute; bottom: 3px; right: 4px; }
+  .day-cell .icon-wrap img { width: 22px; height: 22px; object-fit: contain; }
+  .empty-cell { border-right: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a; height: 46px; }
   .empty-cell:nth-child(7n) { border-right: none; }
 
-  /* ===================== FOOTER (shared) ===================== */
-  .footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 14px;
-    flex-wrap: wrap;
-    gap: 8px 0;
-  }
-  .stat {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 6px;
-  }
-  .stat-icon {
-    width: 16px;
-    height: 16px;
-    object-fit: contain;
-    flex-shrink: 0;
-  }
+  /* ===================== FOOTER ===================== */
+  .footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; flex-wrap: wrap; gap: 8px 0; }
+  .stat { display: flex; align-items: center; gap: 6px; padding: 0 6px; }
+  .stat-icon { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
   .stat-text { display: flex; flex-direction: column; }
-  .stat-label {
-    color: #888;
-    font-size: 6px;
-    letter-spacing: 0.5px;
-    font-weight: 400;
-    white-space: nowrap;
-  }
-  .stat-value {
-    color: #fff;
-    font-size: 11px;
-    font-weight: 900;
-    letter-spacing: 0.3px;
-    margin-top: 1px;
-    white-space: nowrap;
-  }
-  .divider {
-    width: 1px;
-    height: 22px;
-    background: #2a2a2a;
-    flex-shrink: 0;
-  }
+  .stat-label { color: #888; font-size: 6px; letter-spacing: 0.5px; font-weight: 400; white-space: nowrap; }
+  .stat-value { color: #fff; font-size: 11px; font-weight: 900; letter-spacing: 0.3px; margin-top: 1px; white-space: nowrap; }
+  .divider { width: 1px; height: 22px; background: #2a2a2a; flex-shrink: 0; }
 
   @media (max-width: 380px) {
     .stat-label { font-size: 5.5px; }
@@ -236,191 +231,333 @@
 </head>
 <body>
 
-<!-- ===================== WEEKLY CARD ===================== -->
-<div class="card">
+<!-- ===================== WELCOME SCREEN ===================== -->
+<div id="welcome-screen">
+  <canvas id="fire-canvas"></canvas>
 
-  <div class="header">
-    <img class="avatar" src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOYajEn0bREqYT0uQwGjVh0t87tHd8AAvYiAALuMYlVuehaB-8XieY8BA" alt="profile">
-    <div class="user-info">
-      <div class="user-name">AARAV</div>
-      <div class="user-tag">STAY FOCUSED.<br>STAY FREE.</div>
-    </div>
-    <div class="title-wrap">
-      <div class="title-weekly">ANTI-FAP-WEEKLY</div>
+  <div class="welcome-content">
+    <img class="welcome-avatar" src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOYajEn0bREqYT0uQwGjVh0t87tHd8AAvYiAALuMYlVuehaB-8XieY8BA" alt="profile">
+    <div class="welcome-title">WELCOME BACK,<br>AARAV 👊</div>
+    <div class="welcome-sub">Stay Focused. Stay Free.</div>
+    <div class="welcome-msg">
+      Every day you resist is a day you<br>
+      <span>build the man you're becoming.</span><br>
+      Keep the streak alive. 🔥
     </div>
   </div>
 
-  <div class="week-grid">
-    <div class="day-col">
-      <div class="day-letter">S</div>
-      <div class="day-num">18</div>
-      <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div>
-    </div>
-    <div class="day-col">
-      <div class="day-letter">M</div>
-      <div class="day-num">19</div>
-      <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div>
-    </div>
-    <div class="day-col">
-      <div class="day-letter">T</div>
-      <div class="day-num">20</div>
-      <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div>
-    </div>
-    <div class="day-col">
-      <div class="day-letter">W</div>
-      <div class="day-num">21</div>
-      <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div>
-    </div>
-    <div class="day-col">
-      <div class="day-letter">T</div>
-      <div class="day-num">22</div>
-      <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div>
-    </div>
-    <div class="day-col">
-      <div class="day-letter">F</div>
-      <div class="day-num">23</div>
-      <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div>
-    </div>
-    <div class="day-col">
-      <div class="day-letter">S</div>
-      <div class="day-num">24</div>
-      <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div>
-    </div>
+  <div class="btn-group">
+    <button class="nav-btn" onclick="showScreen('weekly')">🔥 &nbsp;WEEKLY STREAK</button>
+    <button class="nav-btn" onclick="showScreen('monthly')">📅 &nbsp;MONTHLY STREAK</button>
   </div>
-
-  <div class="footer">
-    <div class="stat">
-      <img class="stat-icon" src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire">
-      <div class="stat-text">
-        <div class="stat-label">TOTAL STREAK</div>
-        <div class="stat-value">4 DAYS</div>
-      </div>
-    </div>
-    <div class="divider"></div>
-    <div class="stat">
-      <img class="stat-icon" src="https://i.postimg.cc/y6b5YcjX/Picsart-26-06-16-16-22-45-830.jpg" alt="calendar">
-      <div class="stat-text">
-        <div class="stat-label">TODAY</div>
-        <div class="stat-value">MAY 22, 2025</div>
-      </div>
-    </div>
-    <div class="divider"></div>
-    <div class="stat">
-      <img class="stat-icon" src="https://i.postimg.cc/0QZTC4pP/Picsart-26-06-16-16-36-12-032.png" alt="clock">
-      <div class="stat-text">
-        <div class="stat-label">DAY</div>
-        <div class="stat-value">THURSDAY</div>
-      </div>
-    </div>
-    <div class="divider"></div>
-    <div class="stat">
-      <div class="stat-text">
-        <div class="stat-label">MONTH</div>
-        <div class="stat-value">MAY</div>
-      </div>
-    </div>
-  </div>
-
 </div>
 
-<!-- ===================== MONTHLY CARD ===================== -->
-<div class="card">
+<!-- ===================== WEEKLY SCREEN ===================== -->
+<div id="weekly-screen">
+  <button class="back-btn" onclick="showScreen('welcome')">← BACK</button>
 
-  <img class="bg-flame" src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="">
-
-  <div class="header">
-    <img class="avatar" src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOYajEn0bREqYT0uQwGjVh0t87tHd8AAvYiAALuMYlVuehaB-8XieY8BA" alt="profile">
-    <div class="user-info">
-      <div class="user-name">AARAV</div>
-      <div class="user-tag">STAY FOCUSED.<br>STAY FREE.</div>
-    </div>
-    <div class="title-wrap">
-      <div class="title-monthly">ANTI-FAP-MONTHLY</div>
-      <div class="subtitle">BUILD DISCIPLINE. BREAK LIMITS.</div>
-    </div>
-  </div>
-
-  <div class="weekday-row">
-    <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
-  </div>
-
-  <div class="month-grid">
-    <div class="empty-cell"></div>
-    <div class="empty-cell"></div>
-    <div class="empty-cell"></div>
-    <div class="empty-cell"></div>
-    <div class="day-cell"><div class="day-num">1</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">2</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">3</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
-
-    <div class="day-cell"><div class="day-num">4</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">5</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">6</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">7</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
-    <div class="day-cell"><div class="day-num">8</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">9</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">10</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
-
-    <div class="day-cell"><div class="day-num">11</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">12</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">13</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
-    <div class="day-cell"><div class="day-num">14</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">15</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">16</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
-    <div class="day-cell"><div class="day-num">17</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-
-    <div class="day-cell"><div class="day-num">18</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
-    <div class="day-cell"><div class="day-num">19</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">20</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">21</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">22</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
-    <div class="day-cell"><div class="day-num">23</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">24</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
-
-    <div class="day-cell"><div class="day-num">25</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">26</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
-    <div class="day-cell"><div class="day-num">27</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">28</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">29</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
-    <div class="day-cell"><div class="day-num">30</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-    <div class="day-cell"><div class="day-num">31</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
-  </div>
-
-  <div class="footer">
-    <div class="stat">
-      <img class="stat-icon" src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire">
-      <div class="stat-text">
-        <div class="stat-label">TOTAL STREAK</div>
-        <div class="stat-value">7 DAYS</div>
+  <div class="card">
+    <div class="header">
+      <img class="avatar" src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOYajEn0bREqYT0uQwGjVh0t87tHd8AAvYiAALuMYlVuehaB-8XieY8BA" alt="profile">
+      <div class="user-info">
+        <div class="user-name">AARAV</div>
+        <div class="user-tag">STAY FOCUSED.<br>STAY FREE.</div>
+      </div>
+      <div class="title-wrap">
+        <div class="title-weekly">ANTI-FAP-WEEKLY</div>
       </div>
     </div>
-    <div class="divider"></div>
-    <div class="stat">
-      <img class="stat-icon" src="https://i.postimg.cc/y6b5YcjX/Picsart-26-06-16-16-22-45-830.jpg" alt="calendar">
-      <div class="stat-text">
-        <div class="stat-label">TODAY</div>
-        <div class="stat-value">MAY 22, 2025</div>
+
+    <div class="week-grid">
+      <div class="day-col">
+        <div class="day-letter">S</div>
+        <div class="day-num">18</div>
+        <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div>
+      </div>
+      <div class="day-col">
+        <div class="day-letter">M</div>
+        <div class="day-num">19</div>
+        <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div>
+      </div>
+      <div class="day-col">
+        <div class="day-letter">T</div>
+        <div class="day-num">20</div>
+        <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div>
+      </div>
+      <div class="day-col">
+        <div class="day-letter">W</div>
+        <div class="day-num">21</div>
+        <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div>
+      </div>
+      <div class="day-col">
+        <div class="day-letter">T</div>
+        <div class="day-num">22</div>
+        <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div>
+      </div>
+      <div class="day-col">
+        <div class="day-letter">F</div>
+        <div class="day-num">23</div>
+        <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div>
+      </div>
+      <div class="day-col">
+        <div class="day-letter">S</div>
+        <div class="day-num">24</div>
+        <div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div>
       </div>
     </div>
-    <div class="divider"></div>
-    <div class="stat">
-      <img class="stat-icon" src="https://i.postimg.cc/0QZTC4pP/Picsart-26-06-16-16-36-12-032.png" alt="clock">
-      <div class="stat-text">
-        <div class="stat-label">DAY</div>
-        <div class="stat-value">THURSDAY</div>
+
+    <div class="footer">
+      <div class="stat">
+        <img class="stat-icon" src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire">
+        <div class="stat-text">
+          <div class="stat-label">TOTAL STREAK</div>
+          <div class="stat-value">4 DAYS</div>
+        </div>
       </div>
-    </div>
-    <div class="divider"></div>
-    <div class="stat">
-      <img class="stat-icon" src="https://i.postimg.cc/y6b5YcjX/Picsart-26-06-16-16-22-45-830.jpg" alt="calendar">
-      <div class="stat-text">
-        <div class="stat-label">MONTH</div>
-        <div class="stat-value">MAY</div>
+      <div class="divider"></div>
+      <div class="stat">
+        <img class="stat-icon" src="https://i.postimg.cc/y6b5YcjX/Picsart-26-06-16-16-22-45-830.jpg" alt="calendar">
+        <div class="stat-text">
+          <div class="stat-label">TODAY</div>
+          <div class="stat-value">MAY 22, 2025</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat">
+        <img class="stat-icon" src="https://i.postimg.cc/0QZTC4pP/Picsart-26-06-16-16-36-12-032.png" alt="clock">
+        <div class="stat-text">
+          <div class="stat-label">DAY</div>
+          <div class="stat-value">THURSDAY</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat">
+        <div class="stat-text">
+          <div class="stat-label">MONTH</div>
+          <div class="stat-value">MAY</div>
+        </div>
       </div>
     </div>
   </div>
-
 </div>
 
+<!-- ===================== MONTHLY SCREEN ===================== -->
+<div id="monthly-screen">
+  <button class="back-btn" onclick="showScreen('welcome')">← BACK</button>
+
+  <div class="card">
+    <img class="bg-flame" src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="">
+    <div class="header">
+      <img class="avatar" src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOYajEn0bREqYT0uQwGjVh0t87tHd8AAvYiAALuMYlVuehaB-8XieY8BA" alt="profile">
+      <div class="user-info">
+        <div class="user-name">AARAV</div>
+        <div class="user-tag">STAY FOCUSED.<br>STAY FREE.</div>
+      </div>
+      <div class="title-wrap">
+        <div class="title-monthly">ANTI-FAP-MONTHLY</div>
+        <div class="subtitle">BUILD DISCIPLINE. BREAK LIMITS.</div>
+      </div>
+    </div>
+
+    <div class="weekday-row">
+      <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+    </div>
+
+    <div class="month-grid">
+      <div class="empty-cell"></div>
+      <div class="empty-cell"></div>
+      <div class="empty-cell"></div>
+      <div class="empty-cell"></div>
+      <div class="day-cell"><div class="day-num">1</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">2</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">3</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
+
+      <div class="day-cell"><div class="day-num">4</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">5</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">6</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">7</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
+      <div class="day-cell"><div class="day-num">8</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">9</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">10</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
+
+      <div class="day-cell"><div class="day-num">11</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">12</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">13</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
+      <div class="day-cell"><div class="day-num">14</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">15</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">16</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
+      <div class="day-cell"><div class="day-num">17</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+
+      <div class="day-cell"><div class="day-num">18</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
+      <div class="day-cell"><div class="day-num">19</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">20</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">21</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">22</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
+      <div class="day-cell"><div class="day-num">23</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">24</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
+
+      <div class="day-cell"><div class="day-num">25</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">26</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
+      <div class="day-cell"><div class="day-num">27</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">28</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">29</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAObajEoZnoxnoTHCiWI9qRaweyENhAAAvkiAALuMYlVhxK9ok2Cwbg8BA" alt="ice"></div></div>
+      <div class="day-cell"><div class="day-num">30</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+      <div class="day-cell"><div class="day-num">31</div><div class="icon-wrap"><img src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire"></div></div>
+    </div>
+
+    <div class="footer">
+      <div class="stat">
+        <img class="stat-icon" src="https://imghost-bay.vercel.app/i/BQACAgUAAyEGAATP5GC2AAOcajEoiLAEMM3658YT4CFDXE_O0bUAAvoiAALuMYlVrWf9w0HHMlI8BA" alt="fire">
+        <div class="stat-text">
+          <div class="stat-label">TOTAL STREAK</div>
+          <div class="stat-value">7 DAYS</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat">
+        <img class="stat-icon" src="https://i.postimg.cc/y6b5YcjX/Picsart-26-06-16-16-22-45-830.jpg" alt="calendar">
+        <div class="stat-text">
+          <div class="stat-label">TODAY</div>
+          <div class="stat-value">MAY 22, 2025</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat">
+        <img class="stat-icon" src="https://i.postimg.cc/0QZTC4pP/Picsart-26-06-16-16-36-12-032.png" alt="clock">
+        <div class="stat-text">
+          <div class="stat-label">DAY</div>
+          <div class="stat-value">THURSDAY</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat">
+        <img class="stat-icon" src="https://i.postimg.cc/y6b5YcjX/Picsart-26-06-16-16-22-45-830.jpg" alt="calendar">
+        <div class="stat-text">
+          <div class="stat-label">MONTH</div>
+          <div class="stat-value">MAY</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ===================== SCREEN NAVIGATION ===================== */
+  function showScreen(screen) {
+    if (screen === 'welcome') {
+      // Show welcome first for instant feel, then start animation
+      document.getElementById('welcome-screen').style.display = 'flex';
+      document.getElementById('weekly-screen').style.display = 'none';
+      document.getElementById('monthly-screen').style.display = 'none';
+      document.body.style.overflow = 'hidden';
+      window.scrollTo(0, 0);
+      startFire();
+    } else {
+      // Stop fire before switching screens to free up GPU
+      stopFire();
+      document.getElementById('welcome-screen').style.display = 'none';
+      if (screen === 'weekly') {
+        document.getElementById('weekly-screen').style.display = 'flex';
+        document.getElementById('monthly-screen').style.display = 'none';
+      } else {
+        document.getElementById('monthly-screen').style.display = 'flex';
+        document.getElementById('weekly-screen').style.display = 'none';
+      }
+      document.body.style.overflow = 'auto';
+      window.scrollTo(0, 0);
+    }
+  }
+
+  /* ===================== FIRE CANVAS ===================== */
+  const canvas = document.getElementById("fire-canvas");
+  const ctx = canvas.getContext("2d");
+  let rafId = null;       // requestAnimationFrame handle
+  let fireActive = false; // guard so we never double-start
+  let t = 0;
+
+  function resize() {
+    canvas.width = innerWidth;
+    canvas.height = innerHeight;
+  }
+  resize();
+  addEventListener("resize", resize);
+
+  // Pre-build sparks once, reset them when fire restarts
+  const sparks = Array.from({ length: 40 }, () => ({
+    x: Math.random() * innerWidth,
+    y: innerHeight - 50,
+    s: 1 + Math.random() * 2,
+    vy: -(0.5 + Math.random() * 2),
+    life: Math.random()
+  }));
+
+  function drawFireLayer(offset, color, blur) {
+    ctx.save();
+    ctx.filter = `blur(${blur}px)`;
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height);
+    for (let x = 0; x <= canvas.width; x += 20) {
+      const y = canvas.height - 40 - offset
+        - Math.sin(x * 0.01 + t) * 20
+        - Math.sin(x * 0.02 + t * 1.3) * 15;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function frame() {
+    if (!fireActive) return; // safety: stop if flag cleared
+    t += 0.015;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawFireLayer(0,  "rgba(255,60,0,0.18)",   55);
+    drawFireLayer(10, "rgba(255,120,0,0.15)",  45);
+    drawFireLayer(20, "rgba(255,200,80,0.12)", 35);
+
+    sparks.forEach(p => {
+      p.y += p.vy;
+      p.life -= 0.003;
+      if (p.life <= 0) {
+        p.x = Math.random() * canvas.width;
+        p.y = canvas.height - 50;
+        p.life = 1;
+      }
+      ctx.beginPath();
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = "#ffb347";
+      ctx.fillStyle = `rgba(255,220,120,${p.life})`;
+      ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Reset shadow so it doesn't bleed onto next operations
+    ctx.shadowBlur = 0;
+
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function startFire() {
+    if (fireActive) return; // already running, do nothing
+    fireActive = true;
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function stopFire() {
+    fireActive = false;
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    // Clear canvas so there's no ghost frame visible if welcome reappears later
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Init — show welcome and start fire immediately
+  showScreen('welcome');
+</script>
 </body>
 </html>
