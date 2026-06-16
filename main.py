@@ -1,8 +1,9 @@
 import asyncio
 import logging
+import threading
 from datetime import datetime, timedelta
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
-from aiohttp import web
 from pyrogram import Client, filters
 from pyrogram.types import (
     Message, CallbackQuery,
@@ -13,7 +14,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
 
-from config import BOT_TOKEN, API_ID, API_HASH
+from config import BOT_TOKEN, API_ID, API_HASH, PORT
 from database import (
     add_user, is_user_joined, get_all_active_users,
     save_streak, has_streak_entry_today, get_user_stats,
@@ -38,7 +39,23 @@ app = Client(
 scheduler = AsyncIOScheduler(timezone=IST)
 
 
-# ─────────────────────────── helpers ───────────────────────────
+# ── Health check server ────────────────────────────────────────────────────────
+
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+    def log_message(self, format, *args):
+        pass  # Suppress access logs
+
+def run_health_server():
+    server = HTTPServer(("0.0.0.0", PORT), HealthHandler)
+    server.serve_forever()
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def get_streak_date_for_broadcast() -> datetime:
     return get_ist_now() - timedelta(days=1)
@@ -46,7 +63,7 @@ def get_streak_date_for_broadcast() -> datetime:
 
 def is_within_entry_window() -> bool:
     ist_now = get_ist_now()
-    start = ist_now.replace(hour=5, minute=0, second=0, microsecond=0)
+    start = ist_now.replace(hour=5,  minute=0,  second=0,  microsecond=0)
     end   = ist_now.replace(hour=23, minute=59, second=59, microsecond=0)
     return start <= ist_now <= end
 
@@ -59,11 +76,10 @@ def format_day_month(dt: datetime) -> str:
     return dt.strftime("%b %d")
 
 
-# ─────────────────────────── handlers ───────────────────────────
+# ── Handlers ───────────────────────────────────────────────────────────────────
 
 @app.on_message(filters.command("start") & filters.private)
 async def start_handler(client: Client, message: Message):
-    user = message.from_user
     join_button = InlineKeyboardMarkup([[
         InlineKeyboardButton("🔥 Join the Challenge", callback_data="join_streak")
     ]])
@@ -182,13 +198,13 @@ async def stats_handler(client: Client, message: Message):
     )
 
 
-# ─────────────────────────── broadcast ───────────────────────────
+# ── Broadcast ──────────────────────────────────────────────────────────────────
 
 async def send_morning_broadcast():
     ist_now = get_ist_now()
     streak_date = ist_now - timedelta(days=1)
-    date_label = format_streak_date(streak_date)
-    day_month  = format_day_month(streak_date)
+    date_label  = format_streak_date(streak_date)
+    day_month   = format_day_month(streak_date)
     broadcast_text = (
         f"🌅 **Good Morning! Daily Streak Check-In**\n\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -208,7 +224,9 @@ async def send_morning_broadcast():
     for user in users:
         uid = user["user_id"]
         try:
-            msg = await app.send_message(uid, broadcast_text, reply_markup=keyboard, parse_mode="markdown")
+            msg = await app.send_message(
+                uid, broadcast_text, reply_markup=keyboard, parse_mode="markdown"
+            )
             sent_ids.append({"user_id": uid, "message_id": msg.id})
             await asyncio.sleep(0.05)
         except FloodWait as e:
@@ -221,52 +239,32 @@ async def send_morning_broadcast():
     logger.info(f"Broadcast sent to {len(sent_ids)} users for {date_label}")
 
 
-# ─────────────────────────── web server ───────────────────────────
+# ── Scheduler setup (called after event loop is running) ──────────────────────
 
-async def health_check(request):
-    now = get_ist_now().strftime("%d %b %Y %I:%M %p IST")
-    return web.json_response({
-        "status": "ok",
-        "service": "NoFap Streak Bot",
-        "time_ist": now
-    })
-
-
-async def start_web_server():
-    web_app = web.Application()
-    web_app.router.add_get("/",       health_check)
-    web_app.router.add_get("/health", health_check)
-    runner = web.AppRunner(web_app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8080)
-    await site.start()
-    logger.info("Health-check server live on port 8080")
+def setup_scheduler():
+    scheduler.add_job(
+        send_morning_broadcast,
+        CronTrigger(hour=5, minute=0, timezone=IST),
+        id="morning_broadcast",
+        replace_existing=True
+    )
+    scheduler.start()
+    logger.info("Scheduler started — 5:00 AM IST daily broadcast armed.")
 
 
-# ─────────────────────────── entry point ───────────────────────────
-
-async def main():
-    # 1. Health-check web server
-    await start_web_server()
-
-    # 2. Pyrogram — async with ensures dispatcher runs properly
-    async with app:
-        me = await app.get_me()
-        logger.info(f"NoFap Bot live: @{me.username}")
-
-        # 3. APScheduler — must start AFTER the event loop is running
-        scheduler.add_job(
-            send_morning_broadcast,
-            CronTrigger(hour=5, minute=0, timezone=IST),
-            id="morning_broadcast",
-            replace_existing=True
-        )
-        scheduler.start()
-        logger.info("Scheduler started — 5:00 AM IST daily broadcast armed.")
-
-        # 4. Keep alive inside context so dispatcher stays active
-        await asyncio.Event().wait()
-
+# ── Main entry ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # 1. Start health-check server in a daemon thread (same pattern as working bot)
+    thread = threading.Thread(target=run_health_server, daemon=True)
+    thread.start()
+    logger.info(f"Health-check server running on port {PORT}")
+
+    # 2. Start scheduler before app.run() — APScheduler will attach to the
+    #    event loop that Pyrogram creates internally via app.run()
+    setup_scheduler()
+
+    # 3. app.run() blocks, starts the dispatcher, and handles everything —
+    #    this is exactly what the working bot uses
+    logger.info("Bot starting...")
+    app.run()
