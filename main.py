@@ -1,6 +1,8 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
+
+from aiohttp import web
 from pyrogram import Client, filters
 from pyrogram.types import (
     Message, CallbackQuery,
@@ -18,7 +20,10 @@ from database import (
     get_ist_now, save_broadcast_record
 )
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 IST = pytz.timezone("Asia/Kolkata")
@@ -32,36 +37,29 @@ app = Client(
 
 scheduler = AsyncIOScheduler(timezone=IST)
 
-# ─────────────────────────────────────────────
-# HELPERS
-# ─────────────────────────────────────────────
+
+# ─────────────────────────── helpers ───────────────────────────
 
 def get_streak_date_for_broadcast() -> datetime:
-    """The streak date is YESTERDAY (the day we're asking about)."""
-    ist_now = get_ist_now()
-    yesterday = ist_now - timedelta(days=1)
-    return yesterday
+    return get_ist_now() - timedelta(days=1)
 
 
 def is_within_entry_window() -> bool:
-    """Streak can be entered from 5:00 AM to 11:59 PM IST today."""
     ist_now = get_ist_now()
     start = ist_now.replace(hour=5, minute=0, second=0, microsecond=0)
-    end = ist_now.replace(hour=23, minute=59, second=59, microsecond=0)
+    end   = ist_now.replace(hour=23, minute=59, second=59, microsecond=0)
     return start <= ist_now <= end
 
 
 def format_streak_date(dt: datetime) -> str:
-    return dt.strftime("%d %B %Y")  # e.g. "16 June 2025"
+    return dt.strftime("%d %B %Y")
 
 
 def format_day_month(dt: datetime) -> str:
-    return dt.strftime("%b %d")  # e.g. "Jun 16"
+    return dt.strftime("%b %d")
 
 
-# ─────────────────────────────────────────────
-# /START COMMAND
-# ─────────────────────────────────────────────
+# ─────────────────────────── handlers ───────────────────────────
 
 @app.on_message(filters.command("start") & filters.private)
 async def start_handler(client: Client, message: Message):
@@ -69,7 +67,6 @@ async def start_handler(client: Client, message: Message):
     join_button = InlineKeyboardMarkup([[
         InlineKeyboardButton("🔥 Join the Challenge", callback_data="join_streak")
     ]])
-
     welcome_text = (
         "🧠 **Welcome to NoFap Streak Tracker** 🧠\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -87,28 +84,15 @@ async def start_handler(client: Client, message: Message):
         "🚀 **Ready to reclaim your power?**\n"
         "Hit the button below to begin your journey! 👇"
     )
+    await message.reply_text(welcome_text, reply_markup=join_button, parse_mode="markdown")
 
-    await message.reply_text(
-        welcome_text,
-        reply_markup=join_button,
-        parse_mode="markdown"
-    )
-
-
-# ─────────────────────────────────────────────
-# JOIN CALLBACK
-# ─────────────────────────────────────────────
 
 @app.on_callback_query(filters.regex("^join_streak$"))
 async def join_callback(client: Client, callback: CallbackQuery):
     user = callback.from_user
     newly_added = add_user(user.id, user.username or "", user.first_name or "User")
-
     if newly_added:
-        await callback.answer(
-            "🔥 You joined the streak challenge! Stay strong!",
-            show_alert=True
-        )
+        await callback.answer("🔥 You joined the streak challenge! Stay strong!", show_alert=True)
         await callback.message.reply_text(
             f"✅ **Welcome aboard, {user.first_name}!**\n\n"
             "You're now part of the NoFap Streak community.\n\n"
@@ -118,54 +102,35 @@ async def join_callback(client: Client, callback: CallbackQuery):
             parse_mode="markdown"
         )
     else:
-        await callback.answer(
-            "✅ You're already in the challenge! Keep going! 💪",
-            show_alert=True
-        )
+        await callback.answer("✅ You're already in the challenge! Keep going! 💪", show_alert=True)
 
-
-# ─────────────────────────────────────────────
-# STREAK RESPONSE CALLBACKS
-# ─────────────────────────────────────────────
 
 @app.on_callback_query(filters.regex("^streak_(yes|no)$"))
 async def streak_response_callback(client: Client, callback: CallbackQuery):
     user = callback.from_user
-
     if not is_user_joined(user.id):
-        await callback.answer(
-            "❌ You haven't joined yet! Send /start to join.",
-            show_alert=True
-        )
+        await callback.answer("❌ You haven't joined yet! Send /start to join.", show_alert=True)
         return
-
     if not is_within_entry_window():
-        await callback.answer(
-            "⏰ Time's up! Streak window closed at 11:59 PM IST.",
-            show_alert=True
-        )
+        await callback.answer("⏰ Streak ended! The entry window has closed for today.", show_alert=True)
         try:
             await callback.message.delete()
         except Exception:
             pass
         return
-
     streak_date = get_streak_date_for_broadcast()
-
     if has_streak_entry_today(user.id, streak_date):
         await callback.answer(
-            f"📌 You already submitted your streak for {format_day_month(streak_date)}!",
+            f"📌 Already submitted for {format_day_month(streak_date)}!",
             show_alert=True
         )
         return
-
     maintained = callback.data == "streak_yes"
     saved = save_streak(user.id, streak_date, maintained)
-
     if saved:
         if maintained:
             await callback.answer(
-                f"✅ Streak for {format_day_month(streak_date)} added successfully! Keep it up! 🔥",
+                f"✅ Streak for {format_day_month(streak_date)} added successfully! 🔥",
                 show_alert=True
             )
             stats = get_user_stats(user.id)
@@ -193,45 +158,17 @@ async def streak_response_callback(client: Client, callback: CallbackQuery):
                 parse_mode="markdown"
             )
     else:
-        await callback.answer(
-            "⚠️ Something went wrong. Please try again.",
-            show_alert=True
-        )
+        await callback.answer("⚠️ Something went wrong. Please try again.", show_alert=True)
 
-
-# ─────────────────────────────────────────────
-# EXPIRED STREAK CALLBACK (outside window)
-# ─────────────────────────────────────────────
-
-@app.on_callback_query(filters.regex("^streak_expired$"))
-async def expired_callback(client: Client, callback: CallbackQuery):
-    await callback.answer(
-        "⏰ Streak ended! The entry window has closed for today.",
-        show_alert=True
-    )
-    try:
-        await callback.message.delete()
-    except Exception:
-        pass
-
-
-# ─────────────────────────────────────────────
-# /STATS COMMAND
-# ─────────────────────────────────────────────
 
 @app.on_message(filters.command("stats") & filters.private)
 async def stats_handler(client: Client, message: Message):
     user = message.from_user
     if not is_user_joined(user.id):
-        await message.reply_text(
-            "❌ You haven't joined the challenge yet!\nSend /start to begin your journey.",
-            parse_mode="markdown"
-        )
+        await message.reply_text("❌ You haven't joined yet!\nSend /start to begin.", parse_mode="markdown")
         return
-
     stats = get_user_stats(user.id)
     joined_str = stats["joined_at"].strftime("%d %B %Y") if stats.get("joined_at") else "Unknown"
-
     await message.reply_text(
         f"📊 **Your NoFap Stats, {stats['first_name']}!**\n\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -245,17 +182,13 @@ async def stats_handler(client: Client, message: Message):
     )
 
 
-# ─────────────────────────────────────────────
-# MORNING BROADCAST (5 AM IST)
-# ─────────────────────────────────────────────
+# ─────────────────────────── broadcast ───────────────────────────
 
 async def send_morning_broadcast():
-    """Broadcast streak check-in to all active users at 5 AM IST."""
     ist_now = get_ist_now()
-    streak_date = ist_now - timedelta(days=1)  # Yesterday = the streak date
+    streak_date = ist_now - timedelta(days=1)
     date_label = format_streak_date(streak_date)
-    day_month = format_day_month(streak_date)
-
+    day_month  = format_day_month(streak_date)
     broadcast_text = (
         f"🌅 **Good Morning! Daily Streak Check-In**\n\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -263,48 +196,77 @@ async def send_morning_broadcast():
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"🧠 *Did you maintain your NoFap streak*\n"
         f"*on **{day_month}**?*\n\n"
-        f"⏰ You have until **11:59 PM IST today** to respond.\n"
-        f"After that, the window closes!\n\n"
+        f"⏰ You have until **11:59 PM IST today** to respond.\n\n"
         f"💬 Be honest with yourself — that's where growth begins."
     )
-
     keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton("✅ YES — I maintained it!", callback_data="streak_yes"),
-        InlineKeyboardButton("❌ NO — I slipped", callback_data="streak_no")
+        InlineKeyboardButton("❌ NO — I slipped",        callback_data="streak_no")
     ]])
-
-    users = get_all_active_users()
+    users    = get_all_active_users()
     sent_ids = []
-
     for user in users:
         uid = user["user_id"]
         try:
             msg = await app.send_message(uid, broadcast_text, reply_markup=keyboard, parse_mode="markdown")
             sent_ids.append({"user_id": uid, "message_id": msg.id})
-            await asyncio.sleep(0.05)  # Rate limit safety
+            await asyncio.sleep(0.05)
         except FloodWait as e:
             await asyncio.sleep(e.value)
         except (UserIsBlocked, InputUserDeactivated):
-            logger.warning(f"User {uid} blocked or deactivated. Skipping.")
+            logger.warning(f"User {uid} blocked/deactivated.")
         except Exception as e:
             logger.error(f"Failed to send to {uid}: {e}")
-
     save_broadcast_record(streak_date, sent_ids)
-    logger.info(f"Morning broadcast sent to {len(sent_ids)} users for {date_label}")
+    logger.info(f"Broadcast sent to {len(sent_ids)} users for {date_label}")
 
 
-# ─────────────────────────────────────────────
-# SCHEDULER SETUP
-# ─────────────────────────────────────────────
+# ─────────────────────────── web server ───────────────────────────
 
-def setup_scheduler():
-    scheduler.add_job(
-        send_morning_broadcast,
-        CronTrigger(hour=5, minute=0, timezone=IST),
-        id="morning_broadcast",
-        replace_existing=True
-    )
-    scheduler.start()
-    logger.info("Scheduler started — morning broadcast at 5:00 AM IST daily.")
+async def health_check(request):
+    now = get_ist_now().strftime("%d %b %Y %I:%M %p IST")
+    return web.json_response({
+        "status": "ok",
+        "service": "NoFap Streak Bot",
+        "time_ist": now
+    })
 
 
+async def start_web_server():
+    web_app = web.Application()
+    web_app.router.add_get("/",       health_check)
+    web_app.router.add_get("/health", health_check)
+    runner = web.AppRunner(web_app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", 8080)
+    await site.start()
+    logger.info("Health-check server live on port 8080")
+
+
+# ─────────────────────────── entry point ───────────────────────────
+
+async def main():
+    # 1. Health-check web server
+    await start_web_server()
+
+    # 2. Pyrogram — async with ensures dispatcher runs properly
+    async with app:
+        me = await app.get_me()
+        logger.info(f"NoFap Bot live: @{me.username}")
+
+        # 3. APScheduler — must start AFTER the event loop is running
+        scheduler.add_job(
+            send_morning_broadcast,
+            CronTrigger(hour=5, minute=0, timezone=IST),
+            id="morning_broadcast",
+            replace_existing=True
+        )
+        scheduler.start()
+        logger.info("Scheduler started — 5:00 AM IST daily broadcast armed.")
+
+        # 4. Keep alive inside context so dispatcher stays active
+        await asyncio.Event().wait()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
