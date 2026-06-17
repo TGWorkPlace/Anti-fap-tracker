@@ -21,17 +21,24 @@ IST = pytz.timezone("Asia/Kolkata")
 
 # ===================== STREAK WINDOW CONFIG =====================
 # Broadcast goes out at 5:00 AM IST every day, asking about the PREVIOUS day's streak.
-BROADCAST_HOUR_IST = 13
-BROADCAST_MINUTE_IST = 40
+BROADCAST_HOUR_IST = 5
+BROADCAST_MINUTE_IST = 0
 
 # Entry window: 5:00 AM IST to 11:59 PM IST (same day as broadcast)
-ENTRY_START_HOUR_IST = 13
-ENTRY_START_MINUTE_IST = 40
+ENTRY_START_HOUR_IST = 5
+ENTRY_START_MINUTE_IST = 0
 ENTRY_END_HOUR_IST = 23
 ENTRY_END_MINUTE_IST = 59
 
 # ===================== SERVER CONFIG (Koyeb health check) =====================
 PORT = int(os.environ.get("PORT", "8080"))
 
+# ===================== WEB APP CONFIG =====================
+# Public HTTPS URL of this same Koyeb service (e.g. https://your-app.koyeb.app).
+# Telegram requires Web App launch URLs to be HTTPS. Set this once you know
+# your Koyeb public domain.
+WEB_APP_URL = os.environ.get("WEB_APP_URL", "")
+
 # ===================== BOT META =====================
 BOT_NAME = "NoFap Streak Tracker"
+
