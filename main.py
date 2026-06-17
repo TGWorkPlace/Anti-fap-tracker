@@ -28,9 +28,12 @@ from config import (
     ENTRY_END_MINUTE_IST,
     PORT,
     BOT_NAME,
+    WEB_APP_URL,
 )
 from database import Database
 import streak as streak_image
+import webapp as webapp_backend
+from pyrogram.types import WebAppInfo
 
 # Setup logging
 logging.basicConfig(
@@ -150,9 +153,18 @@ def streak_inline_keyboard(streak_date_str: str) -> InlineKeyboardMarkup:
 
 
 def join_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [[InlineKeyboardButton(JOIN_BUTTON_TEXT, callback_data="join_streak")]]
-    )
+    buttons = [[InlineKeyboardButton(JOIN_BUTTON_TEXT, callback_data="join_streak")]]
+
+    if WEB_APP_URL:
+        dashboard_url = WEB_APP_URL.rstrip("/") + "/webapp"
+        buttons.append([
+            InlineKeyboardButton(
+                "📊 Open Streak Dashboard",
+                web_app=WebAppInfo(url=dashboard_url),
+            )
+        ])
+
+    return InlineKeyboardMarkup(buttons)
 
 
 # ===================== COMMAND HANDLERS =====================
@@ -449,22 +461,130 @@ def schedule_jobs(scheduler: AsyncIOScheduler):
     )
 
 
-# ===================== HEALTH CHECK SERVER (Koyeb) =====================
+# ===================== WEB APP SERVER (Koyeb) =====================
+
+WEBAPP_DIR = os.path.dirname(os.path.abspath(__file__))
+WEBAPP_HTML_PATH = os.path.join(WEBAPP_DIR, "webapp_ui.html")
+WEBAPP_IMG_DIR = os.path.join(WEBAPP_DIR, "img")
+
 
 async def health_check(request):
     return web.Response(text="OK - NoFap Streak Bot is running.")
 
 
+async def webapp_index(request):
+    """Serves the Telegram Mini App HTML."""
+    try:
+        with open(WEBAPP_HTML_PATH, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return web.Response(text=html_content, content_type="text/html")
+    except FileNotFoundError:
+        return web.Response(text="Web app HTML not found.", status=500)
+
+
+async def webapp_static_img(request):
+    """Serves icon images (fire.png, ice.png, profile.png, etc.) used by the Mini App."""
+    filename = request.match_info.get("filename", "")
+    # Prevent path traversal
+    safe_name = os.path.basename(filename)
+    file_path = os.path.join(WEBAPP_IMG_DIR, safe_name)
+
+    if not os.path.exists(file_path):
+        return web.Response(text="Not found", status=404)
+
+    return web.FileResponse(file_path)
+
+
+def _extract_init_data(payload: dict) -> str:
+    init_data = payload.get("init_data", "")
+    if not init_data:
+        raise ValueError("Missing init_data in request body")
+    return init_data
+
+
+async def api_user(request):
+    """
+    POST /api/user
+    Body: { "init_data": "<Telegram WebApp initData string>" }
+    Returns the verified user's display name + avatar URL.
+    """
+    try:
+        payload = await request.json()
+        init_data = _extract_init_data(payload)
+        user = webapp_backend.verify_init_data(init_data)
+        user_payload = webapp_backend.build_user_payload(user)
+        return web.json_response(user_payload)
+    except ValueError as e:
+        logger.warning(f"/api/user rejected: {e}")
+        return web.json_response({"error": str(e)}, status=403)
+    except Exception as e:
+        logger.error(f"/api/user error: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
+async def api_weekly(request):
+    """
+    POST /api/weekly
+    Body: { "init_data": "<Telegram WebApp initData string>" }
+    Returns the verified user's current Sun-Sat week streak data.
+    """
+    try:
+        payload = await request.json()
+        init_data = _extract_init_data(payload)
+        user = webapp_backend.verify_init_data(init_data)
+        user_id = user.get("id")
+        weekly_payload = webapp_backend.build_weekly_payload(user_id, db)
+        return web.json_response(weekly_payload)
+    except ValueError as e:
+        logger.warning(f"/api/weekly rejected: {e}")
+        return web.json_response({"error": str(e)}, status=403)
+    except Exception as e:
+        logger.error(f"/api/weekly error: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
+async def api_monthly(request):
+    """
+    POST /api/monthly
+    Body: { "init_data": "<Telegram WebApp initData string>" }
+    Returns the verified user's current calendar month streak data.
+    """
+    try:
+        payload = await request.json()
+        init_data = _extract_init_data(payload)
+        user = webapp_backend.verify_init_data(init_data)
+        user_id = user.get("id")
+        monthly_payload = webapp_backend.build_monthly_payload(user_id, db)
+        return web.json_response(monthly_payload)
+    except ValueError as e:
+        logger.warning(f"/api/monthly rejected: {e}")
+        return web.json_response({"error": str(e)}, status=403)
+    except Exception as e:
+        logger.error(f"/api/monthly error: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
 async def start_health_server():
     web_app = web.Application()
+
+    # Health check (Koyeb)
     web_app.router.add_get("/", health_check)
     web_app.router.add_get("/health", health_check)
+
+    # Telegram Mini App
+    web_app.router.add_get("/webapp", webapp_index)
+    web_app.router.add_get("/img/{filename}", webapp_static_img)
+
+    # Mini App data API
+    web_app.router.add_post("/api/user", api_user)
+    web_app.router.add_post("/api/weekly", api_weekly)
+    web_app.router.add_post("/api/monthly", api_monthly)
 
     runner = web.AppRunner(web_app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", PORT)
     await site.start()
-    logger.info(f"Health check server running on port {PORT}.")
+    logger.info(f"Health check + Web App server running on port {PORT}.")
 
 
 # ===================== MAIN ENTRYPOINT =====================
