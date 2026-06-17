@@ -1,22 +1,37 @@
 import os
+import pytz
 
-# Bot Configuration
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
-API_ID = int(os.environ.get("API_ID", "YOUR_API_ID"))
-API_HASH = os.environ.get("API_HASH", "YOUR_API_HASH_HERE")
+# ===================== TELEGRAM CONFIG =====================
+API_ID = int(os.environ.get("API_ID", "0"))
+API_HASH = os.environ.get("API_HASH", "")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 
-# MongoDB Configuration
+# ===================== DATABASE CONFIG =====================
 MONGO_URI = os.environ.get("MONGO_URI", "")
-DB_NAME = "nofap_bot"
+DB_NAME = os.environ.get("DB_NAME", "nofap_streak_bot")
 
-# Bot Settings
-BOT_USERNAME = os.environ.get("BOT_USERNAME", "YourBotUsername")
-STREAK_BROADCAST_HOUR = 5    # 5 AM IST
-STREAK_BROADCAST_MINUTE = 0
-IST_OFFSET = 5.5             # UTC+5:30
+# ===================== ADMIN CONFIG =====================
+# Comma separated list of admin user ids, e.g. "12345,67890"
+ADMIN_IDS = [
+    int(x) for x in os.environ.get("ADMIN_IDS", "").split(",") if x.strip().isdigit()
+]
 
-# Streak entry window: 5:00 AM to 11:59 PM IST same day
-STREAK_WINDOW_START_HOUR = 5
-STREAK_WINDOW_END_HOUR = 23
-STREAK_WINDOW_END_MINUTE = 59
-PORT = int(os.environ.get("PORT", 8080))
+# ===================== TIMEZONE CONFIG =====================
+IST = pytz.timezone("Asia/Kolkata")
+
+# ===================== STREAK WINDOW CONFIG =====================
+# Broadcast goes out at 5:00 AM IST every day, asking about the PREVIOUS day's streak.
+BROADCAST_HOUR_IST = 5
+BROADCAST_MINUTE_IST = 0
+
+# Entry window: 5:00 AM IST to 11:59 PM IST (same day as broadcast)
+ENTRY_START_HOUR_IST = 5
+ENTRY_START_MINUTE_IST = 0
+ENTRY_END_HOUR_IST = 23
+ENTRY_END_MINUTE_IST = 59
+
+# ===================== SERVER CONFIG (Koyeb health check) =====================
+PORT = int(os.environ.get("PORT", "8080"))
+
+# ===================== BOT META =====================
+BOT_NAME = "NoFap Streak Tracker"
