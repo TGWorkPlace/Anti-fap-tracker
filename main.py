@@ -246,7 +246,13 @@ async def weekly_handler(client: Client, message: Message):
 
     try:
         image_path = await streak_image.generate_weekly_image(client, user_id, user_name, db)
-        await message.reply_photo(photo=image_path, caption="🔥 **Your Weekly Streak Tracker**")
+        # Sent as a document (not reply_photo) so Telegram does NOT recompress
+        # or downscale it server-side, preserving full sharpness.
+        await message.reply_document(
+            document=image_path,
+            caption="🔥 **Your Weekly Streak Tracker**",
+            file_name="weekly_streak.png",
+        )
     except Exception as e:
         logger.error(f"Failed to generate weekly image for {user_id}: {e}")
         await message.reply_text("⚠️ Something went wrong generating your weekly card. Please try again.")
@@ -280,7 +286,13 @@ async def monthly_handler(client: Client, message: Message):
 
     try:
         image_path = await streak_image.generate_monthly_image(client, user_id, user_name, db)
-        await message.reply_photo(photo=image_path, caption="🔥 **Your Monthly Streak Tracker**")
+        # Sent as a document (not reply_photo) so Telegram does NOT recompress
+        # or downscale it server-side, preserving full sharpness.
+        await message.reply_document(
+            document=image_path,
+            caption="🔥 **Your Monthly Streak Tracker**",
+            file_name="monthly_streak.png",
+        )
     except Exception as e:
         logger.error(f"Failed to generate monthly image for {user_id}: {e}")
         await message.reply_text("⚠️ Something went wrong generating your monthly card. Please try again.")
