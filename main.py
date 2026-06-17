@@ -1,403 +1,370 @@
 import asyncio
+import datetime
 import logging
-import threading
-from datetime import datetime, timedelta
-from http.server import HTTPServer, BaseHTTPRequestHandler
 
-from pyrogram import Client, filters, idle
-from pyrogram.types import (
-    Message, CallbackQuery,
-    InlineKeyboardMarkup, InlineKeyboardButton
-)
-from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated
+from aiohttp import web
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-import pytz
-import motor.motor_asyncio
-from pymongo import ASCENDING
+from pyrogram import Client, filters
+from pyrogram.types import (
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    CallbackQuery,
+    Message,
+)
+from pyrogram.errors import FloodWait
 
-from config import BOT_TOKEN, API_ID, API_HASH, MONGO_URI, DB_NAME, PORT
+from config import (
+    API_ID,
+    API_HASH,
+    BOT_TOKEN,
+    ADMIN_IDS,
+    IST,
+    BROADCAST_HOUR_IST,
+    BROADCAST_MINUTE_IST,
+    ENTRY_START_HOUR_IST,
+    ENTRY_START_MINUTE_IST,
+    ENTRY_END_HOUR_IST,
+    ENTRY_END_MINUTE_IST,
+    PORT,
+    BOT_NAME,
+)
+from database import Database
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-IST = pytz.timezone("Asia/Kolkata")
+db = Database()
 
-# ── Pyrogram client ────────────────────────────────────────────────────────────
 app = Client(
-    "nofap_bot",
+    "nofap_streak_bot",
     api_id=API_ID,
     api_hash=API_HASH,
-    bot_token=BOT_TOKEN
+    bot_token=BOT_TOKEN,
 )
 
-scheduler = AsyncIOScheduler(timezone=IST)
+# ===================== TEXT TEMPLATES =====================
 
-# ── Async MongoDB (Motor) ──────────────────────────────────────────────────────
-mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
-db           = mongo_client[DB_NAME]
-users_col      = db["users"]
-streaks_col    = db["streaks"]
-broadcasts_col = db["broadcasts"]
+START_TEXT = """✨ **Welcome to {bot_name}** ✨
 
+🔥 You are one decision away from a stronger, sharper, more disciplined version of yourself.
 
-async def ensure_indexes():
-    await users_col.create_index([("user_id", ASCENDING)], unique=True)
-    await streaks_col.create_index([("user_id", ASCENDING), ("streak_date", ASCENDING)], unique=True)
-    await broadcasts_col.create_index([("broadcast_date", ASCENDING)], unique=True)
-    logger.info("MongoDB indexes ensured.")
+Every streak you build is proof that you are in control — not your urges, not your impulses. **You.**
 
+🧠 **What this bot does for you:**
+• Tracks your daily NoFap streak automatically
+• Sends you a daily check-in every morning at **5:00 AM IST**
+• Builds your discipline one day at a time
+• Keeps a permanent record of your journey
 
-# ── Health check server ────────────────────────────────────────────────────────
-class HealthHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"OK")
+💪 Champions are not born. They are built — one single day of discipline, repeated.
 
-    def log_message(self, format, *args):
-        pass
+👇 Tap the button below to begin your transformation. Your future self is waiting.
+"""
 
+JOIN_BUTTON_TEXT = "🔵 Join the Streak"
+JOIN_ALERT_TEXT = "✅ You joined to streak! Your journey starts now. 💪"
+ALREADY_JOINED_TEXT = "You're already part of the streak family! 🔥 Use /streak to check your progress."
 
-def run_health_server():
-    server = HTTPServer(("0.0.0.0", PORT), HealthHandler)
-    server.serve_forever()
+STREAK_ENDED_ALERT = "⏰ Streak ended! The time limit to answer has passed."
+
+ENTRY_SAVED_ALERT = "✅ Added successfully!"
+ALREADY_ANSWERED_ALERT = "ℹ️ You've already answered for this day."
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
-def get_ist_now() -> datetime:
-    return datetime.now(IST)
+# ===================== HELPERS =====================
+
+def get_ist_now() -> datetime.datetime:
+    return datetime.datetime.now(IST)
 
 
-def get_streak_date_for_broadcast() -> datetime:
-    return get_ist_now() - timedelta(days=1)
+def is_within_entry_window(now_ist: datetime.datetime) -> bool:
+    """Entry window is from ENTRY_START to ENTRY_END (same day), IST."""
+    start = now_ist.replace(
+        hour=ENTRY_START_HOUR_IST, minute=ENTRY_START_MINUTE_IST, second=0, microsecond=0
+    )
+    end = now_ist.replace(
+        hour=ENTRY_END_HOUR_IST, minute=ENTRY_END_MINUTE_IST, second=59, microsecond=999999
+    )
+    return start <= now_ist <= end
 
 
-def is_within_entry_window() -> bool:
-    ist_now = get_ist_now()
-    start = ist_now.replace(hour=5,  minute=0,  second=0,  microsecond=0)
-    end   = ist_now.replace(hour=23, minute=59, second=59, microsecond=0)
-    return start <= ist_now <= end
+def format_streak_question(target_date: datetime.datetime) -> str:
+    day_str = target_date.strftime("%d")
+    month_str = target_date.strftime("%B")
+    day_name = target_date.strftime("%A")
+
+    text = f"""🌅 **Good Morning, Warrior!**
+
+📅 **{day_name}, {month_str} {day_str}**
+
+Did you successfully complete your NoFap streak for **{month_str} {day_str}**?
+
+🕒 You have until **11:59 PM IST today** to respond. After that, the window closes for this entry.
+
+Answer honestly — this streak is for you, not anyone else. 💪
+"""
+    return text
 
 
-def format_streak_date(dt: datetime) -> str:
-    return dt.strftime("%d %B %Y")
-
-
-def format_day_month(dt: datetime) -> str:
-    return dt.strftime("%b %d")
-
-
-# ── DB helpers (async) ─────────────────────────────────────────────────────────
-async def add_user(user_id: int, username: str, first_name: str) -> bool:
-    existing = await users_col.find_one({"user_id": user_id})
-    if existing:
-        return False
-    await users_col.insert_one({
-        "user_id":        user_id,
-        "username":       username,
-        "first_name":     first_name,
-        "joined_at":      get_ist_now(),
-        "total_streaks":  0,
-        "current_streak": 0,
-        "longest_streak": 0,
-        "is_active":      True
-    })
-    return True
-
-
-async def is_user_joined(user_id: int) -> bool:
-    return await users_col.find_one({"user_id": user_id, "is_active": True}) is not None
-
-
-async def get_all_active_users() -> list:
-    return await users_col.find({"is_active": True}).to_list(length=None)
-
-
-async def save_streak(user_id: int, streak_date: datetime, maintained: bool) -> bool:
-    date_only = streak_date.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
-    existing  = await streaks_col.find_one({"user_id": user_id, "streak_date": date_only})
-    if existing:
-        return False
-    ist_now = get_ist_now()
-    await streaks_col.insert_one({
-        "user_id":            user_id,
-        "streak_date":        date_only,
-        "year":               date_only.year,
-        "month":              date_only.month,
-        "month_name":         date_only.strftime("%B"),
-        "day":                date_only.day,
-        "maintained":         maintained,
-        "recorded_at":        ist_now,
-        "recorded_at_ist_str": ist_now.strftime("%d %b %Y %I:%M %p IST")
-    })
-    if maintained:
-        await users_col.update_one({"user_id": user_id}, {"$inc": {"total_streaks": 1}})
-        await _update_streak_counts(user_id)
-    return True
-
-
-async def _update_streak_counts(user_id: int):
-    records = await streaks_col.find(
-        {"user_id": user_id, "maintained": True},
-        sort=[("streak_date", ASCENDING)]
-    ).to_list(length=None)
-
-    if not records:
-        await users_col.update_one(
-            {"user_id": user_id},
-            {"$set": {"current_streak": 0, "longest_streak": 0}}
-        )
-        return
-
-    dates   = [r["streak_date"] for r in records]
-    longest = 1
-    temp    = 1
-
-    for i in range(1, len(dates)):
-        if (dates[i] - dates[i - 1]).days == 1:
-            temp += 1
-            if temp > longest:
-                longest = temp
-        else:
-            temp = 1
-
-    ist_today = get_ist_now().date()
-    last_date = dates[-1].date()
-    current   = temp if (ist_today - last_date).days <= 1 else 0
-
-    await users_col.update_one(
-        {"user_id": user_id},
-        {"$set": {"current_streak": current, "longest_streak": longest}}
+def streak_inline_keyboard(streak_date_str: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ Yes", callback_data=f"streak_yes_{streak_date_str}"),
+                InlineKeyboardButton("❌ No", callback_data=f"streak_no_{streak_date_str}"),
+            ]
+        ]
     )
 
 
-async def has_streak_entry_today(user_id: int, streak_date: datetime) -> bool:
-    date_only = streak_date.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
-    return await streaks_col.find_one({"user_id": user_id, "streak_date": date_only}) is not None
-
-
-async def get_user_stats(user_id: int) -> dict:
-    user = await users_col.find_one({"user_id": user_id})
-    if not user:
-        return {}
-    return {
-        "first_name":     user.get("first_name", "User"),
-        "total_streaks":  user.get("total_streaks", 0),
-        "current_streak": user.get("current_streak", 0),
-        "longest_streak": user.get("longest_streak", 0),
-        "joined_at":      user.get("joined_at")
-    }
-
-
-async def save_broadcast_record(broadcast_date: datetime, message_ids: list):
-    date_only = broadcast_date.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
-    await broadcasts_col.update_one(
-        {"broadcast_date": date_only},
-        {"$set": {"message_ids": message_ids, "sent_at": get_ist_now()}},
-        upsert=True
+def join_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton(JOIN_BUTTON_TEXT, callback_data="join_streak")]]
     )
 
 
-# ── Handlers ───────────────────────────────────────────────────────────────────
+# ===================== COMMAND HANDLERS =====================
+
 @app.on_message(filters.command("start") & filters.private)
 async def start_handler(client: Client, message: Message):
-    join_button  = InlineKeyboardMarkup([[
-        InlineKeyboardButton("🔥 Join the Challenge", callback_data="join_streak")
-    ]])
-    welcome_text = (
-        "🧠 **Welcome to NoFap Streak Tracker** 🧠\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "💪 *\"Discipline is choosing between what you want now*\n"
-        "*and what you want most.\"*\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "🌅 **Every morning at 5:00 AM IST**, I'll ask you:\n"
-        "_\"Did you maintain your streak yesterday?\"_\n\n"
-        "✅ Tap **YES** → Your streak grows stronger\n"
-        "❌ Tap **NO** → Reset and rise again\n\n"
-        "📊 Every response is saved with **date, month & time**\n"
-        "📈 Track your **current streak** and **personal best**\n\n"
-        "⏰ You have until **11:59 PM IST** each day to respond\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "🚀 **Ready to reclaim your power?**\n"
-        "Hit the button below to begin your journey! 👇"
+    text = START_TEXT.format(bot_name=BOT_NAME)
+    await message.reply_text(
+        text,
+        reply_markup=join_keyboard(),
+        disable_web_page_preview=True,
     )
-    await message.reply_text(welcome_text, reply_markup=join_button, parse_mode="markdown")
 
 
-@app.on_callback_query(filters.regex("^join_streak$"))
-async def join_callback(client: Client, callback: CallbackQuery):
-    user        = callback.from_user
-    newly_added = await add_user(user.id, user.username or "", user.first_name or "User")
-    if newly_added:
-        await callback.answer("🔥 You joined the streak challenge! Stay strong!", show_alert=True)
-        await callback.message.reply_text(
-            f"✅ **Welcome aboard, {user.first_name}!**\n\n"
-            "You're now part of the NoFap Streak community.\n\n"
-            "🌅 Every morning at **5:00 AM IST**, you'll receive a check-in message.\n"
-            "📅 Reply honestly — your journey starts **NOW**!\n\n"
-            "💬 Use /stats to see your progress anytime.",
-            parse_mode="markdown"
-        )
-    else:
-        await callback.answer("✅ You're already in the challenge! Keep going! 💪", show_alert=True)
+@app.on_message(filters.command("streak") & filters.private)
+async def streak_handler(client: Client, message: Message):
+    user_id = message.from_user.id
 
-
-@app.on_callback_query(filters.regex("^streak_(yes|no)$"))
-async def streak_response_callback(client: Client, callback: CallbackQuery):
-    user = callback.from_user
-    if not await is_user_joined(user.id):
-        await callback.answer("❌ You haven't joined yet! Send /start to join.", show_alert=True)
-        return
-    if not is_within_entry_window():
-        await callback.answer("⏰ Streak ended! The entry window has closed for today.", show_alert=True)
-        try:
-            await callback.message.delete()
-        except Exception:
-            pass
-        return
-    streak_date = get_streak_date_for_broadcast()
-    if await has_streak_entry_today(user.id, streak_date):
-        await callback.answer(
-            f"📌 Already submitted for {format_day_month(streak_date)}!",
-            show_alert=True
+    if not db.is_joined(user_id):
+        await message.reply_text(
+            "You haven't joined yet! Tap /start and hit the join button first. 🔵"
         )
         return
-    maintained = callback.data == "streak_yes"
-    saved      = await save_streak(user.id, streak_date, maintained)
-    if saved:
-        if maintained:
-            await callback.answer(
-                f"✅ Streak for {format_day_month(streak_date)} added successfully! 🔥",
-                show_alert=True
-            )
-            stats = await get_user_stats(user.id)
-            await callback.message.edit_text(
-                f"🔥 **Streak Logged — {format_streak_date(streak_date)}**\n\n"
-                f"✅ You maintained your NoFap streak!\n\n"
-                f"📊 **Your Stats:**\n"
-                f"├ 🔥 Current Streak: **{stats['current_streak']} days**\n"
-                f"├ 🏆 Longest Streak: **{stats['longest_streak']} days**\n"
-                f"└ 📅 Total Days Logged: **{stats['total_streaks']}**\n\n"
-                f"💪 *Keep pushing. You're stronger than you think.*",
-                parse_mode="markdown"
-            )
-        else:
-            await callback.answer(
-                f"💔 Streak ended. Entry recorded for {format_day_month(streak_date)}. Rise again!",
-                show_alert=True
-            )
-            await callback.message.edit_text(
-                f"📋 **Streak Entry — {format_streak_date(streak_date)}**\n\n"
-                f"❌ Streak not maintained.\n\n"
-                f"🌱 *Every fall is a chance to rise stronger.*\n"
-                f"*Today is a brand new beginning.*\n\n"
-                f"🔄 Tomorrow's check-in is a fresh start!",
-                parse_mode="markdown"
-            )
-    else:
-        await callback.answer("⚠️ Something went wrong. Please try again.", show_alert=True)
+
+    stats = db.get_user_stats(user_id)
+    if not stats:
+        await message.reply_text("No streak data found yet. Start answering daily check-ins!")
+        return
+
+    text = f"""🔥 **Your Current Streak**
+
+🏆 Current Streak: **{stats['current_streak']} day(s)**
+⭐ Longest Streak: **{stats['longest_streak']} day(s)**
+
+Keep going — discipline compounds. 💪
+"""
+    await message.reply_text(text)
 
 
 @app.on_message(filters.command("stats") & filters.private)
 async def stats_handler(client: Client, message: Message):
-    user = message.from_user
-    if not await is_user_joined(user.id):
+    user_id = message.from_user.id
+
+    if not db.is_joined(user_id):
         await message.reply_text(
-            "❌ You haven't joined yet!\nSend /start to begin.",
-            parse_mode="markdown"
+            "You haven't joined yet! Tap /start and hit the join button first. 🔵"
         )
         return
-    stats      = await get_user_stats(user.id)
-    joined_str = stats["joined_at"].strftime("%d %B %Y") if stats.get("joined_at") else "Unknown"
-    await message.reply_text(
-        f"📊 **Your NoFap Stats, {stats['first_name']}!**\n\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"🔥 **Current Streak:** {stats['current_streak']} days\n"
-        f"🏆 **Longest Streak:** {stats['longest_streak']} days\n"
-        f"📅 **Total Days Logged:** {stats['total_streaks']}\n"
-        f"📆 **Member Since:** {joined_str}\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"💪 *Keep going. Every day counts.*",
-        parse_mode="markdown"
-    )
+
+    stats = db.get_user_stats(user_id)
+    if not stats:
+        await message.reply_text("No streak data found yet. Start answering daily check-ins!")
+        return
+
+    history = db.get_user_history(user_id, limit=10)
+    history_lines = []
+    for entry in history:
+        emoji = "✅" if entry["answer"] == "yes" else "❌"
+        history_lines.append(f"{emoji} {entry['day_name']}, {entry['month_name']} {entry['streak_date'][-2:]}")
+
+    history_text = "\n".join(history_lines) if history_lines else "No entries yet."
+
+    text = f"""📊 **Your Full Stats**
+
+🏆 Current Streak: **{stats['current_streak']} day(s)**
+⭐ Longest Streak: **{stats['longest_streak']} day(s)**
+✅ Total "Yes": **{stats['total_yes']}**
+❌ Total "No": **{stats['total_no']}**
+📅 Joined on: **{stats['joined_at']}**
+
+🗓 **Last 10 Entries:**
+{history_text}
+"""
+    await message.reply_text(text)
 
 
-# ── Broadcast ──────────────────────────────────────────────────────────────────
-async def send_morning_broadcast():
-    ist_now     = get_ist_now()
-    streak_date = ist_now - timedelta(days=1)
-    date_label  = format_streak_date(streak_date)
-    day_month   = format_day_month(streak_date)
-    broadcast_text = (
-        f"🌅 **Good Morning! Daily Streak Check-In**\n\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📅 **Streak Date: {date_label}**\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"🧠 *Did you maintain your NoFap streak*\n"
-        f"*on **{day_month}**?*\n\n"
-        f"⏰ You have until **11:59 PM IST today** to respond.\n\n"
-        f"💬 Be honest with yourself — that's where growth begins."
-    )
-    keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton("✅ YES — I maintained it!", callback_data="streak_yes"),
-        InlineKeyboardButton("❌ NO — I slipped",        callback_data="streak_no")
-    ]])
-    users    = await get_all_active_users()
-    sent_ids = []
-    for user in users:
-        uid = user["user_id"]
+@app.on_message(filters.command("broadcaststats") & filters.private)
+async def broadcast_stats_handler(client: Client, message: Message):
+    """Admin only: quick check of total joined users."""
+    if message.from_user.id not in ADMIN_IDS:
+        return
+    total = db.get_total_users_count()
+    await message.reply_text(f"👥 Total joined users: **{total}**")
+
+
+# ===================== CALLBACK HANDLERS =====================
+
+@app.on_callback_query(filters.regex(r"^join_streak$"))
+async def join_callback(client: Client, callback_query: CallbackQuery):
+    user = callback_query.from_user
+
+    if db.is_joined(user.id):
+        await callback_query.answer(ALREADY_JOINED_TEXT, show_alert=True)
+        return
+
+    db.add_user(user_id=user.id, first_name=user.first_name or "", username=user.username)
+    await callback_query.answer(JOIN_ALERT_TEXT, show_alert=True)
+
+
+@app.on_callback_query(filters.regex(r"^streak_(yes|no)_\d{4}-\d{2}-\d{2}$"))
+async def streak_answer_callback(client: Client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    data = callback_query.data  # e.g. streak_yes_2026-06-16
+    parts = data.split("_")
+    answer = parts[1]               # "yes" or "no"
+    streak_date_str = parts[2]      # "2026-06-16"
+
+    now_ist = get_ist_now()
+
+    # Check time window first
+    if not is_within_entry_window(now_ist):
+        await callback_query.answer(STREAK_ENDED_ALERT, show_alert=True)
         try:
-            msg = await app.send_message(
-                uid, broadcast_text, reply_markup=keyboard, parse_mode="markdown"
-            )
-            sent_ids.append({"user_id": uid, "message_id": msg.id})
-            await asyncio.sleep(0.05)
-        except FloodWait as e:
-            await asyncio.sleep(e.value)
-        except (UserIsBlocked, InputUserDeactivated):
-            logger.warning(f"User {uid} blocked/deactivated.")
+            await callback_query.message.delete()
         except Exception as e:
-            logger.error(f"Failed to send to {uid}: {e}")
-    await save_broadcast_record(streak_date, sent_ids)
-    logger.info(f"Broadcast sent to {len(sent_ids)} users for {date_label}")
+            logger.warning(f"Failed to delete expired streak message: {e}")
+        return
+
+    # Check if already answered for this date
+    if db.has_entry_for_date(user_id, streak_date_str):
+        await callback_query.answer(ALREADY_ANSWERED_ALERT, show_alert=True)
+        return
+
+    # Parse date to get day_name / month_name for storage
+    streak_date_obj = datetime.datetime.strptime(streak_date_str, "%Y-%m-%d")
+    day_name = streak_date_obj.strftime("%A")
+    month_name = streak_date_obj.strftime("%B")
+
+    db.add_streak_entry(
+        user_id=user_id,
+        streak_date=streak_date_str,
+        answer=answer,
+        day_name=day_name,
+        month_name=month_name,
+    )
+
+    await callback_query.answer(ENTRY_SAVED_ALERT, show_alert=True)
+
+    # Edit message to show it's been answered (prevents repeated taps visually)
+    try:
+        emoji = "✅" if answer == "yes" else "❌"
+        new_text = callback_query.message.text + f"\n\n{emoji} **You answered: {answer.upper()}**"
+        await callback_query.message.edit_text(new_text)
+    except Exception as e:
+        logger.warning(f"Failed to edit answered streak message: {e}")
 
 
-# ── Main entry ─────────────────────────────────────────────────────────────────
-async def main():
-    # 1. Health server in daemon thread (non-blocking)
-    thread = threading.Thread(target=run_health_server, daemon=True)
-    thread.start()
-    logger.info(f"Health-check server running on port {PORT}")
+# ===================== BROADCAST LOGIC =====================
 
-    # 2. Ensure MongoDB indexes (async, won't block event loop)
-    await ensure_indexes()
+async def send_daily_streak_broadcast():
+    """
+    Runs every day at 5:00 AM IST.
+    Asks about YESTERDAY's date (the day that just ended).
+    """
+    now_ist = get_ist_now()
+    yesterday = now_ist - datetime.timedelta(days=1)
+    streak_date_str = yesterday.strftime("%Y-%m-%d")
 
-    # 3. Start Pyrogram
-    await app.start()
-    me = await app.get_me()
-    logger.info(f"NoFap Bot live: @{me.username}")
+    text = format_streak_question(yesterday)
+    keyboard = streak_inline_keyboard(streak_date_str)
 
-    # 4. Start scheduler AFTER event loop is running
+    user_ids = db.get_all_joined_users()
+    logger.info(f"Starting daily broadcast for {streak_date_str} to {len(user_ids)} users.")
+
+    success_count = 0
+    fail_count = 0
+
+    for user_id in user_ids:
+        try:
+            await app.send_message(user_id, text, reply_markup=keyboard)
+            success_count += 1
+        except FloodWait as e:
+            logger.warning(f"FloodWait {e.value}s while broadcasting to {user_id}")
+            await asyncio.sleep(e.value)
+            try:
+                await app.send_message(user_id, text, reply_markup=keyboard)
+                success_count += 1
+            except Exception as inner_e:
+                logger.error(f"Failed to send to {user_id} after FloodWait: {inner_e}")
+                fail_count += 1
+        except Exception as e:
+            logger.error(f"Failed to send broadcast to {user_id}: {e}")
+            fail_count += 1
+
+        # Small delay to avoid hitting flood limits on large user bases
+        await asyncio.sleep(0.05)
+
+    logger.info(
+        f"Daily broadcast complete. Success: {success_count}, Failed: {fail_count}."
+    )
+
+
+def schedule_jobs(scheduler: AsyncIOScheduler):
     scheduler.add_job(
-        send_morning_broadcast,
-        CronTrigger(hour=5, minute=0, timezone=IST),
-        id="morning_broadcast",
-        replace_existing=True
+        send_daily_streak_broadcast,
+        trigger="cron",
+        hour=BROADCAST_HOUR_IST,
+        minute=BROADCAST_MINUTE_IST,
+        timezone=IST,
+        id="daily_streak_broadcast",
+        misfire_grace_time=3600,
     )
     scheduler.start()
-    logger.info("Scheduler started — 5:00 AM IST daily broadcast armed.")
+    logger.info(
+        f"Scheduler started. Daily broadcast set for {BROADCAST_HOUR_IST:02d}:{BROADCAST_MINUTE_IST:02d} IST."
+    )
 
-    # 5. Pyrogram's own idle — keeps dispatcher alive correctly
-    await idle()
 
-    # 6. Graceful shutdown
-    scheduler.shutdown()
-    await app.stop()
-    logger.info("Bot stopped.")
+# ===================== HEALTH CHECK SERVER (Koyeb) =====================
+
+async def health_check(request):
+    return web.Response(text="OK - NoFap Streak Bot is running.")
+
+
+async def start_health_server():
+    web_app = web.Application()
+    web_app.router.add_get("/", health_check)
+    web_app.router.add_get("/health", health_check)
+
+    runner = web.AppRunner(web_app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", PORT)
+    await site.start()
+    logger.info(f"Health check server running on port {PORT}.")
+
+
+# ===================== MAIN ENTRYPOINT =====================
+
+async def main():
+    await app.start()
+    logger.info("Bot started successfully.")
+
+    scheduler = AsyncIOScheduler()
+    schedule_jobs(scheduler)
+
+    await start_health_server()
+
+    logger.info("All systems running. Bot is now live.")
+
+    # Keep the event loop alive forever
+    await asyncio.Event().wait()
 
 
 if __name__ == "__main__":
