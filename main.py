@@ -382,60 +382,44 @@ async def start_health_server():
 
 # ===================== MAIN ENTRYPOINT =====================
 
-async def send_restart_notification():
-    """
-    Send a DM to all admins when the bot starts/restarts.
-    """
-    restart_time = get_ist_now().strftime("%d %B %Y, %I:%M:%S %p IST")
-
-    text = f"""🔄 **Bot Restarted Successfully**
-
-🤖 Bot: **{BOT_NAME}**
-🕒 Restart Time: **{restart_time}**
-
-✅ All services initialized
-✅ Scheduler started
-✅ Health server running
-✅ Bot is now online
-
-The bot is ready to accept users and process streak entries.
-"""
-
+async def send_restart_notification(client: Client):
     for admin_id in ADMIN_IDS:
         try:
-            await app.send_message(admin_id, text)
-            logger.info(f"Restart notification sent to admin {admin_id}")
+            await client.send_message(admin_id, "🔄 **Bot Restarted Successfully**")
         except Exception as e:
-            logger.error(
-                f"Failed to send restart notification to admin {admin_id}: {e}"
-            )
+            logger.error(f"Failed to notify admin {admin_id}: {e}")
 
+async def send_daily_streak_broadcast(client: Client):
+    now_ist = get_ist_now()
+    yesterday = now_ist - datetime.timedelta(days=1)
+    streak_date_str = yesterday.strftime("%Y-%m-%d")
+    user_ids = db.get_all_joined_users()
+    
+    for user_id in user_ids:
+        try:
+            await client.send_message(user_id, "🌅 **Good Morning! Did you succeed yesterday?**", reply_markup=streak_inline_keyboard(streak_date_str))
+        except Exception as e:
+            logger.error(f"Failed to broadcast to {user_id}: {e}")
+        await asyncio.sleep(0.05)
 
-class Bot(Client):
-    async def start(self):
-        await super().start()
+def schedule_jobs(scheduler: AsyncIOScheduler, client: Client):
+    scheduler.add_job(
+        send_daily_streak_broadcast,
+        trigger="cron",
+        hour=BROADCAST_HOUR_IST,
+        minute=BROADCAST_MINUTE_IST,
+        timezone=IST,
+        args=[client]
+    )
+    scheduler.start()
 
-        logger.info("Bot started successfully.")
+async def start_health_server():
+    web_app = web.Application()
+    web_app.router.add_get("/", lambda r: web.Response(text="OK"))
+    runner = web.AppRunner(web_app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", PORT)
+    await site.start()
 
-        await send_restart_notification()
-
-        scheduler = AsyncIOScheduler()
-        schedule_jobs(scheduler)
-
-        await start_health_server()
-
-        logger.info("All systems running.")
-
-    async def stop(self, *args):
-        logger.info("Bot stopped.")
-        await super().stop()
-
-
-app = Bot(
-    "nofap_streak_bot",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN
-)
-
-app.run()
+if __name__ == "__main__":
+    app.run()
