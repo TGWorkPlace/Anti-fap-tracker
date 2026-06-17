@@ -75,10 +75,24 @@ async def download_user_avatar(client, user_id: int) -> str:
     """
     Downloads the user's current Telegram profile photo fresh via Pyrogram.
     Returns a local file path. Falls back to a default avatar if unavailable.
+
+    Pyrogram's download_media() needs an actual file_id (or a Message/media
+    object containing one) — it cannot take a bare user_id. So we first fetch
+    the user's chat info to read their current profile photo's file_id, then
+    download that.
     """
     try:
+        user_chat = await client.get_chat(user_id)
+        photo = getattr(user_chat, "photo", None)
+
+        if not photo:
+            # User has no profile photo set
+            return DEFAULT_AVATAR_PATH if os.path.exists(DEFAULT_AVATAR_PATH) else None
+
+        file_id = photo.big_file_id or photo.small_file_id
         dest_path = os.path.join(TMP_DIR, f"avatar_{user_id}.jpg")
-        downloaded = await client.download_media(user_id, file_name=dest_path)
+        downloaded = await client.download_media(file_id, file_name=dest_path)
+
         if downloaded and os.path.exists(downloaded):
             return downloaded
     except Exception as e:
