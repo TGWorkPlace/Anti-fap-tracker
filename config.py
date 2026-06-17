@@ -21,12 +21,12 @@ IST = pytz.timezone("Asia/Kolkata")
 
 # ===================== STREAK WINDOW CONFIG =====================
 # Broadcast goes out at 5:00 AM IST every day, asking about the PREVIOUS day's streak.
-BROADCAST_HOUR_IST = 5
-BROADCAST_MINUTE_IST = 0
+BROADCAST_HOUR_IST = 13
+BROADCAST_MINUTE_IST = 40
 
 # Entry window: 5:00 AM IST to 11:59 PM IST (same day as broadcast)
-ENTRY_START_HOUR_IST = 5
-ENTRY_START_MINUTE_IST = 0
+ENTRY_START_HOUR_IST = 13
+ENTRY_START_MINUTE_IST = 40
 ENTRY_END_HOUR_IST = 23
 ENTRY_END_MINUTE_IST = 59
 
