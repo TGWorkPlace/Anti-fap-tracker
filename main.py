@@ -1,4 +1,5 @@
 import re
+import os
 import json
 import base64
 import asyncio
@@ -29,6 +30,7 @@ from config import (
     BOT_NAME,
 )
 from database import Database
+import streak as streak_image
 
 # Setup logging
 logging.basicConfig(
@@ -225,6 +227,74 @@ async def stats_handler(client: Client, message: Message):
 {history_text}
 """
     await message.reply_text(text)
+
+
+@app.on_message(filters.command("weekly") & filters.private)
+async def weekly_handler(client: Client, message: Message):
+    user_id = message.from_user.id
+
+    if not db.is_joined(user_id):
+        await message.reply_text(
+            "You haven't joined yet! Tap /start and hit the join button first. 🔵"
+        )
+        return
+
+    status_msg = await message.reply_text("⏳ Generating your weekly streak card...")
+
+    user_name = message.from_user.first_name or "User"
+    image_path = None
+
+    try:
+        image_path = await streak_image.generate_weekly_image(client, user_id, user_name, db)
+        await message.reply_photo(photo=image_path, caption="🔥 **Your Weekly Streak Tracker**")
+    except Exception as e:
+        logger.error(f"Failed to generate weekly image for {user_id}: {e}")
+        await message.reply_text("⚠️ Something went wrong generating your weekly card. Please try again.")
+    finally:
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+        # Clean up the generated file from disk after sending
+        try:
+            if image_path and os.path.exists(image_path):
+                os.remove(image_path)
+        except Exception:
+            pass
+
+
+@app.on_message(filters.command("monthly") & filters.private)
+async def monthly_handler(client: Client, message: Message):
+    user_id = message.from_user.id
+
+    if not db.is_joined(user_id):
+        await message.reply_text(
+            "You haven't joined yet! Tap /start and hit the join button first. 🔵"
+        )
+        return
+
+    status_msg = await message.reply_text("⏳ Generating your monthly streak card...")
+
+    user_name = message.from_user.first_name or "User"
+    image_path = None
+
+    try:
+        image_path = await streak_image.generate_monthly_image(client, user_id, user_name, db)
+        await message.reply_photo(photo=image_path, caption="🔥 **Your Monthly Streak Tracker**")
+    except Exception as e:
+        logger.error(f"Failed to generate monthly image for {user_id}: {e}")
+        await message.reply_text("⚠️ Something went wrong generating your monthly card. Please try again.")
+    finally:
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+        # Clean up the generated file from disk after sending
+        try:
+            if image_path and os.path.exists(image_path):
+                os.remove(image_path)
+        except Exception:
+            pass
 
 
 @app.on_message(filters.command("broadcaststats") & filters.private)
