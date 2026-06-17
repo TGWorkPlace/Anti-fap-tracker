@@ -1,22 +1,23 @@
-FROM python:3.10
+FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies needed for tgcrypto build and Playwright/Chromium runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    g++ \
+    make \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first (layer caching)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all bot files
+# Install headless Chromium + its OS-level dependencies for Playwright
+RUN playwright install --with-deps chromium
+
 COPY . .
 
-# Expose health-check port for Koyeb
 EXPOSE 8080
 
-# Run the bot via start.py (includes web server)
 CMD ["python", "main.py"]
