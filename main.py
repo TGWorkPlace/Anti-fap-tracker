@@ -131,6 +131,11 @@ def join_keyboard() -> InlineKeyboardMarkup:
 
 
 # ===================== COMMAND HANDLERS =====================
+@app.on_message()
+async def debug_handler(client, message):
+    logger.info(
+        f"Received message: {message.text} from {message.from_user.id}"
+    )
 
 @app.on_message(filters.command("start") & filters.private)
 async def start_handler(client: Client, message: Message):
