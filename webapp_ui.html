@@ -236,19 +236,48 @@
     inset: 0;
     background: #000;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 999;
     color: #888;
     font-size: 11px;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
     text-transform: uppercase;
+    padding: 20px;
+    text-align: center;
+    gap: 16px;
   }
+  #loading-message {
+    font-size: 12px;
+  }
+  #debug-log {
+    width: 100%;
+    max-width: 360px;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: #0a0a0a;
+    border: 1px solid #222;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 9px;
+    text-transform: none;
+    letter-spacing: 0;
+    text-align: left;
+    color: #6f6;
+    line-height: 1.5;
+  }
+  #debug-log .err { color: #f66; }
+  #debug-log .warn { color: #fc6; }
 </style>
 </head>
 <body>
 
-<div id="loading-overlay">LOADING...</div>
+<div id="loading-overlay">
+  <div id="loading-message">LOADING...</div>
+  <div id="debug-log"></div>
+</div>
 
 <!-- ===================== WELCOME SCREEN ===================== -->
 <div id="welcome-screen">
@@ -389,13 +418,41 @@
 </div>
 
 <script>
+  /* ===================== DEBUG LOG (visible on-screen, no DevTools needed) ===================== */
+  function debugLog(msg, level) {
+    const panel = document.getElementById("debug-log");
+    const line = document.createElement("div");
+    if (level === "error") line.className = "err";
+    if (level === "warn") line.className = "warn";
+    line.textContent = msg;
+    panel.appendChild(line);
+    panel.scrollTop = panel.scrollHeight;
+    // Also mirror to real console in case DevTools IS available
+    if (level === "error") console.error(msg);
+    else if (level === "warn") console.warn(msg);
+    else console.log(msg);
+  }
+
+  function setLoadingMessage(text) {
+    document.getElementById("loading-message").innerText = text;
+  }
+
   /* ===================== TELEGRAM WEBAPP INIT ===================== */
+  debugLog("Page script started.");
+  debugLog("window.Telegram exists: " + (!!window.Telegram));
+
   const tg = window.Telegram ? window.Telegram.WebApp : null;
-  console.log("Telegram WebApp SDK loaded:", !!window.Telegram, "WebApp object:", !!tg);
+  debugLog("Telegram.WebApp object exists: " + (!!tg));
+
   if (tg) {
+    debugLog("Calling tg.ready() and tg.expand()...");
     tg.ready();
     tg.expand();
-    console.log("Initial tg.initData length:", (tg.initData || "").length);
+    debugLog("Platform: " + (tg.platform || "unknown") + " | Version: " + (tg.version || "unknown"));
+    debugLog("Initial initData length: " + (tg.initData || "").length);
+    debugLog("Initial initDataUnsafe.user present: " + (!!(tg.initDataUnsafe && tg.initDataUnsafe.user)));
+  } else {
+    debugLog("Telegram.WebApp is NOT available at all. The SDK script may have failed to load, or this page is not running inside Telegram.", "error");
   }
 
   const DEFAULT_AVATAR = "img/profile.png";
@@ -406,6 +463,7 @@
 
   /* ===================== DATA FETCH ===================== */
   async function fetchJSON(url, body) {
+    debugLog("Fetching " + url + " ...");
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -413,12 +471,16 @@
     });
     if (!res.ok) {
       const errText = await res.text();
+      debugLog(url + " failed with status " + res.status + ": " + errText, "error");
       throw new Error(`Request failed (${res.status}): ${errText}`);
     }
+    debugLog(url + " succeeded (status " + res.status + ").");
     return res.json();
   }
 
   async function loadEverything() {
+    setLoadingMessage("Checking Telegram session...");
+
     // tg.initData can be momentarily empty immediately after the WebView
     // first loads, before Telegram's native client finishes injecting it.
     // Poll briefly instead of checking exactly once on the first tick.
@@ -430,14 +492,17 @@
       await new Promise(r => setTimeout(r, 200));
       initData = tg ? tg.initData : "";
       attempts++;
+      debugLog("Retry " + attempts + "/" + maxAttempts + " — initData length now: " + initData.length);
     }
 
     if (!initData) {
-      console.warn("Telegram.WebApp present:", !!tg, "initData after retries:", initData);
-      document.getElementById("loading-overlay").innerText =
-        "Open this from the Telegram bot to continue.";
+      debugLog("Giving up after " + maxAttempts + " retries. initData is still empty.", "error");
+      setLoadingMessage("Open this from the Telegram bot to continue.");
       return;
     }
+
+    debugLog("initData acquired, length " + initData.length + ". Proceeding to fetch data...");
+    setLoadingMessage("Loading your streak data...");
 
     try {
       const [userResp, weeklyResp, monthlyResp] = await Promise.all([
@@ -446,6 +511,7 @@
         fetchJSON("/api/monthly", { init_data: initData }),
       ]);
 
+      debugLog("All 3 API calls succeeded. Rendering UI...");
       applyUserInfo(userResp);
       weeklyData = weeklyResp;
       monthlyData = monthlyResp;
@@ -455,9 +521,8 @@
       document.getElementById("loading-overlay").style.display = "none";
       showScreen("welcome");
     } catch (err) {
-      document.getElementById("loading-overlay").innerText =
-        "Could not load your data. Please reopen from the bot.";
-      console.error(err);
+      debugLog("Error during data load: " + err.message, "error");
+      setLoadingMessage("Could not load your data. Details below:");
     }
   }
 
