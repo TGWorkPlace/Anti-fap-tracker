@@ -390,23 +390,31 @@ The bot is ready to accept users and process streak entries.
             )
 
 
-async def main():
-    await app.start()
-    logger.info("Bot started successfully.")
+class Bot(Client):
+    async def start(self):
+        await super().start()
 
-    # Send restart notification to admins
-    await send_restart_notification()
+        logger.info("Bot started successfully.")
 
-    scheduler = AsyncIOScheduler()
-    schedule_jobs(scheduler)
+        await send_restart_notification()
 
-    await start_health_server()
+        scheduler = AsyncIOScheduler()
+        schedule_jobs(scheduler)
 
-    logger.info("All systems running. Bot is now live.")
+        await start_health_server()
 
-    # Keep event loop alive forever
-    await asyncio.Event().wait()
+        logger.info("All systems running.")
+
+    async def stop(self, *args):
+        logger.info("Bot stopped.")
+        await super().stop()
 
 
-if __name__ == "__main__":
-    asyncio.run(main())
+app = Bot(
+    "nofap_streak_bot",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN
+)
+
+app.run()
