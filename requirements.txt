@@ -15,3 +15,4 @@ openai
 python-dotenv
 psutil
 setuptools
+playwright==1.46.0
