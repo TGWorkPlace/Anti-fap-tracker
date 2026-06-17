@@ -43,6 +43,7 @@ pyroutils.MIN_CHANNEL_ID = -100999999999999
 
 db = Database()
 
+
 class Bot(Client):
     def __init__(self):
         super().__init__(
@@ -56,16 +57,17 @@ class Bot(Client):
         await super().start()
         logger.info("Bot session started.")
         await send_restart_notification(self)
-        
+
         scheduler = AsyncIOScheduler()
-        schedule_jobs(scheduler, self)
-        
+        schedule_jobs(scheduler)
+
         await start_health_server()
         logger.info("All systems running.")
 
     async def stop(self, *args):
         logger.info("Bot stopping...")
         await super().stop()
+
 
 # Initialize the Bot instance ONCE
 app = Bot()
@@ -152,11 +154,6 @@ def join_keyboard() -> InlineKeyboardMarkup:
 
 
 # ===================== COMMAND HANDLERS =====================
-@app.on_message()
-async def debug_handler(client, message):
-    logger.info(
-        f"Received message: {message.text} from {message.from_user.id}"
-    )
 
 @app.on_message(filters.command("start") & filters.private)
 async def start_handler(client: Client, message: Message):
@@ -301,7 +298,15 @@ async def streak_answer_callback(client: Client, callback_query: CallbackQuery):
         logger.warning(f"Failed to edit answered streak message: {e}")
 
 
-# ===================== BROADCAST LOGIC =====================
+# ===================== SYSTEM FUNCTIONS =====================
+
+async def send_restart_notification(client: Client):
+    for admin_id in ADMIN_IDS:
+        try:
+            await client.send_message(admin_id, "🔄 **Bot Restarted Successfully**")
+        except Exception as e:
+            logger.error(f"Failed to notify admin {admin_id}: {e}")
+
 
 async def send_daily_streak_broadcast():
     """
@@ -381,45 +386,6 @@ async def start_health_server():
 
 
 # ===================== MAIN ENTRYPOINT =====================
-
-async def send_restart_notification(client: Client):
-    for admin_id in ADMIN_IDS:
-        try:
-            await client.send_message(admin_id, "🔄 **Bot Restarted Successfully**")
-        except Exception as e:
-            logger.error(f"Failed to notify admin {admin_id}: {e}")
-
-async def send_daily_streak_broadcast(client: Client):
-    now_ist = get_ist_now()
-    yesterday = now_ist - datetime.timedelta(days=1)
-    streak_date_str = yesterday.strftime("%Y-%m-%d")
-    user_ids = db.get_all_joined_users()
-    
-    for user_id in user_ids:
-        try:
-            await client.send_message(user_id, "🌅 **Good Morning! Did you succeed yesterday?**", reply_markup=streak_inline_keyboard(streak_date_str))
-        except Exception as e:
-            logger.error(f"Failed to broadcast to {user_id}: {e}")
-        await asyncio.sleep(0.05)
-
-def schedule_jobs(scheduler: AsyncIOScheduler, client: Client):
-    scheduler.add_job(
-        send_daily_streak_broadcast,
-        trigger="cron",
-        hour=BROADCAST_HOUR_IST,
-        minute=BROADCAST_MINUTE_IST,
-        timezone=IST,
-        args=[client]
-    )
-    scheduler.start()
-
-async def start_health_server():
-    web_app = web.Application()
-    web_app.router.add_get("/", lambda r: web.Response(text="OK"))
-    runner = web.AppRunner(web_app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", PORT)
-    await site.start()
 
 if __name__ == "__main__":
     app.run()
