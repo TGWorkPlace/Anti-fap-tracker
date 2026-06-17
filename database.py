@@ -111,6 +111,20 @@ class Database:
         cursor = self.streaks.find({"user_id": user_id}).sort("streak_date", -1).limit(limit)
         return list(cursor)
 
+    def get_streak_entries_in_range(self, user_id: int, start_date: str, end_date: str):
+        """
+        Returns all streak entries for a user between start_date and end_date
+        (inclusive), both in 'YYYY-MM-DD' string format. Used by /weekly and
+        /monthly image generation to look up which days were Yes/No/blank.
+        Since dates are zero-padded 'YYYY-MM-DD' strings, lexicographic
+        comparison is equivalent to chronological comparison.
+        """
+        cursor = self.streaks.find({
+            "user_id": user_id,
+            "streak_date": {"$gte": start_date, "$lte": end_date},
+        })
+        return list(cursor)
+
     def get_user_stats(self, user_id: int):
         user = self.users.find_one({"user_id": user_id})
         if not user:
