@@ -5,20 +5,14 @@ import asyncio
 import datetime
 import logging
 
-from pyrogram import enums
-from pyrogram.errors import ChatAdminRequired
+from pyrogram import enums, Client, filters, utils as pyroutils
+from pyrogram.errors import ChatAdminRequired, FloodWait
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
 
 from aiohttp import web
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from pyrogram import Client, filters
-from pyrogram.types import (
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    CallbackQuery,
-    Message,
-)
-from pyrogram.errors import FloodWait
 
+# Import your config
 from config import (
     API_ID,
     API_HASH,
@@ -35,25 +29,46 @@ from config import (
     BOT_NAME,
 )
 from database import Database
-from pyrogram import utils as pyroutils
 
-pyroutils.MIN_CHAT_ID = -999999999999
-pyroutils.MIN_CHANNEL_ID = -100999999999999
-
+# Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
+# Fix chat ID constraints
+pyroutils.MIN_CHAT_ID = -999999999999
+pyroutils.MIN_CHANNEL_ID = -100999999999999
+
 db = Database()
 
-app = Client(
-    "nofap_streak_bot",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN,
-)
+class Bot(Client):
+    def __init__(self):
+        super().__init__(
+            "nofap_streak_bot",
+            api_id=API_ID,
+            api_hash=API_HASH,
+            bot_token=BOT_TOKEN,
+        )
+
+    async def start(self):
+        await super().start()
+        logger.info("Bot session started.")
+        await send_restart_notification(self)
+        
+        scheduler = AsyncIOScheduler()
+        schedule_jobs(scheduler, self)
+        
+        await start_health_server()
+        logger.info("All systems running.")
+
+    async def stop(self, *args):
+        logger.info("Bot stopping...")
+        await super().stop()
+
+# Initialize the Bot instance ONCE
+app = Bot()
 
 # ===================== TEXT TEMPLATES =====================
 
