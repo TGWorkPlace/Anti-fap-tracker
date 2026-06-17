@@ -391,9 +391,11 @@
 <script>
   /* ===================== TELEGRAM WEBAPP INIT ===================== */
   const tg = window.Telegram ? window.Telegram.WebApp : null;
+  console.log("Telegram WebApp SDK loaded:", !!window.Telegram, "WebApp object:", !!tg);
   if (tg) {
     tg.ready();
     tg.expand();
+    console.log("Initial tg.initData length:", (tg.initData || "").length);
   }
 
   const DEFAULT_AVATAR = "img/profile.png";
@@ -417,9 +419,21 @@
   }
 
   async function loadEverything() {
-    const initData = tg ? tg.initData : "";
+    // tg.initData can be momentarily empty immediately after the WebView
+    // first loads, before Telegram's native client finishes injecting it.
+    // Poll briefly instead of checking exactly once on the first tick.
+    let initData = tg ? tg.initData : "";
+    let attempts = 0;
+    const maxAttempts = 10; // ~2 seconds total
+
+    while (!initData && attempts < maxAttempts) {
+      await new Promise(r => setTimeout(r, 200));
+      initData = tg ? tg.initData : "";
+      attempts++;
+    }
 
     if (!initData) {
+      console.warn("Telegram.WebApp present:", !!tg, "initData after retries:", initData);
       document.getElementById("loading-overlay").innerText =
         "Open this from the Telegram bot to continue.";
       return;
