@@ -356,9 +356,41 @@ async def start_health_server():
 
 # ===================== MAIN ENTRYPOINT =====================
 
+async def send_restart_notification():
+    """
+    Send a DM to all admins when the bot starts/restarts.
+    """
+    restart_time = get_ist_now().strftime("%d %B %Y, %I:%M:%S %p IST")
+
+    text = f"""🔄 **Bot Restarted Successfully**
+
+🤖 Bot: **{BOT_NAME}**
+🕒 Restart Time: **{restart_time}**
+
+✅ All services initialized
+✅ Scheduler started
+✅ Health server running
+✅ Bot is now online
+
+The bot is ready to accept users and process streak entries.
+"""
+
+    for admin_id in ADMIN_IDS:
+        try:
+            await app.send_message(admin_id, text)
+            logger.info(f"Restart notification sent to admin {admin_id}")
+        except Exception as e:
+            logger.error(
+                f"Failed to send restart notification to admin {admin_id}: {e}"
+            )
+
+
 async def main():
     await app.start()
     logger.info("Bot started successfully.")
+
+    # Send restart notification to admins
+    await send_restart_notification()
 
     scheduler = AsyncIOScheduler()
     schedule_jobs(scheduler)
@@ -367,7 +399,7 @@ async def main():
 
     logger.info("All systems running. Bot is now live.")
 
-    # Keep the event loop alive forever
+    # Keep event loop alive forever
     await asyncio.Event().wait()
 
 
