@@ -208,12 +208,16 @@ def _render_full_html(
 
 # ===================== IMAGE RENDERING (Playwright) =====================
 
-async def _html_to_png(html_content: str, output_path: str, width: int = 760, height: int = 900):
+async def _html_to_png(html_content: str, output_path: str, width: int = 760, height: int = 900, scale: int = 3):
     """
     Renders the given HTML string to a PNG screenshot using headless Chromium.
     Only the .card element is screenshotted, so there's no extra blank canvas
     below the card (body has padding/gap for multi-card layouts, but each
     image request only ever renders a single card).
+
+    device_scale_factor renders at `scale`x the CSS pixel density (like a
+    Retina screenshot) so the output PNG is sharp on modern phone screens
+    instead of soft/blurry 1x rendering.
     """
     tmp_html_path = output_path.replace(".png", ".html")
     with open(tmp_html_path, "w", encoding="utf-8") as f:
@@ -224,7 +228,10 @@ async def _html_to_png(html_content: str, output_path: str, width: int = 760, he
             args=["--no-sandbox", "--disable-setuid-sandbox"]
         )
         try:
-            page = await browser.new_page(viewport={"width": width, "height": height})
+            page = await browser.new_page(
+                viewport={"width": width, "height": height},
+                device_scale_factor=scale,
+            )
             await page.goto(_file_uri(tmp_html_path))
             await page.wait_for_timeout(150)  # allow images to fully paint
             card = page.locator(".card").first
