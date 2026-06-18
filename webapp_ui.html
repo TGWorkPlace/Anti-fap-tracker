@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Anti-Fap Tracker</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>window.__tgScriptStatus = "pending";</script>
+<script src="https://telegram.org/js/telegram-web-app.js"
+        onload="window.__tgScriptStatus = 'loaded';"
+        onerror="window.__tgScriptStatus = 'error';"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -439,27 +442,74 @@
 
   /* ===================== TELEGRAM WEBAPP INIT ===================== */
   debugLog("Page script started.");
+  debugLog("Telegram SDK <script> tag status: " + (window.__tgScriptStatus || "unknown"));
   debugLog("window.Telegram exists: " + (!!window.Telegram));
-
-  const tg = window.Telegram ? window.Telegram.WebApp : null;
-  debugLog("Telegram.WebApp object exists: " + (!!tg));
-
-  if (tg) {
-    debugLog("Calling tg.ready() and tg.expand()...");
-    tg.ready();
-    tg.expand();
-    debugLog("Platform: " + (tg.platform || "unknown") + " | Version: " + (tg.version || "unknown"));
-    debugLog("Initial initData length: " + (tg.initData || "").length);
-    debugLog("Initial initDataUnsafe.user present: " + (!!(tg.initDataUnsafe && tg.initDataUnsafe.user)));
-  } else {
-    debugLog("Telegram.WebApp is NOT available at all. The SDK script may have failed to load, or this page is not running inside Telegram.", "error");
-  }
 
   const DEFAULT_AVATAR = "img/profile.png";
   const ICON_PATHS = { fire: "img/fire.png", ice: "img/ice.png" };
 
   let weeklyData = null;
   let monthlyData = null;
+
+  /**
+   * Waits for window.Telegram.WebApp to become available, AND for
+   * tg.initData to be non-empty, within a bounded timeout. Uses
+   * requestAnimationFrame polling (cheaper / smoother than setTimeout
+   * polling, and automatically pauses when the tab/webview isn't visible).
+   *
+   * Returns the resolved `tg` object, or null if it never became ready.
+   */
+  function waitForTelegramSdk(timeoutMs) {
+    return new Promise((resolve) => {
+      const startedAt = performance.now();
+      let pollCount = 0;
+      let reloadAttempted = false;
+
+      function check() {
+        pollCount++;
+        const tgNow = window.Telegram ? window.Telegram.WebApp : null;
+        const initDataLen = tgNow ? (tgNow.initData || "").length : 0;
+
+        if (tgNow && initDataLen > 0) {
+          debugLog("SDK ready after " + pollCount + " poll(s), " +
+            Math.round(performance.now() - startedAt) + "ms. initData length: " + initDataLen);
+          resolve(tgNow);
+          return;
+        }
+
+        const elapsed = performance.now() - startedAt;
+
+        // Halfway through the timeout, if the SDK object itself never showed
+        // up (not even an empty initData), try one manual script reload —
+        // this only helps if the original request was a transient failure,
+        // not a hard block, but it's a cheap thing to attempt once.
+        if (!tgNow && !reloadAttempted && elapsed > timeoutMs / 2) {
+          reloadAttempted = true;
+          debugLog("Still no Telegram.WebApp at " + Math.round(elapsed) + "ms (script status: " +
+            window.__tgScriptStatus + "). Attempting one manual script reload...", "warn");
+
+          const s = document.createElement("script");
+          s.src = "https://telegram.org/js/telegram-web-app.js";
+          s.onload = () => debugLog("Manual reload: onload fired.");
+          s.onerror = () => debugLog("Manual reload: onerror fired — request failed (network/blocked).", "error");
+          document.head.appendChild(s);
+        }
+
+        if (elapsed >= timeoutMs) {
+          debugLog("Timed out after " + Math.round(elapsed) + "ms and " + pollCount +
+            " polls. window.Telegram: " + (!!window.Telegram) +
+            ", WebApp: " + (!!tgNow) +
+            ", initData length: " + initDataLen, "error");
+          resolve(tgNow && initDataLen > 0 ? tgNow : null);
+          return;
+        }
+
+        requestAnimationFrame(check);
+      }
+
+      requestAnimationFrame(check);
+    });
+  }
 
   /* ===================== DATA FETCH ===================== */
   async function fetchJSON(url, body) {
@@ -481,26 +531,19 @@
   async function loadEverything() {
     setLoadingMessage("Checking Telegram session...");
 
-    // tg.initData can be momentarily empty immediately after the WebView
-    // first loads, before Telegram's native client finishes injecting it.
-    // Poll briefly instead of checking exactly once on the first tick.
-    let initData = tg ? tg.initData : "";
-    let attempts = 0;
-    const maxAttempts = 10; // ~2 seconds total
+    const tg = await waitForTelegramSdk(4000);
 
-    while (!initData && attempts < maxAttempts) {
-      await new Promise(r => setTimeout(r, 200));
-      initData = tg ? tg.initData : "";
-      attempts++;
-      debugLog("Retry " + attempts + "/" + maxAttempts + " — initData length now: " + initData.length);
-    }
-
-    if (!initData) {
-      debugLog("Giving up after " + maxAttempts + " retries. initData is still empty.", "error");
+    if (!tg) {
       setLoadingMessage("Open this from the Telegram bot to continue.");
       return;
     }
 
+    debugLog("Calling tg.ready() and tg.expand()...");
+    tg.ready();
+    tg.expand();
+    debugLog("Platform: " + (tg.platform || "unknown") + " | Version: " + (tg.version || "unknown"));
+
+    const initData = tg.initData;
     debugLog("initData acquired, length " + initData.length + ". Proceeding to fetch data...");
     setLoadingMessage("Loading your streak data...");
 
